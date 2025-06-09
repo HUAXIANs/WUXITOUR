@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,13 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.wuxitour.data.model.Attraction
 import com.example.wuxitour.data.model.AttractionCategory
-import androidx.compose.material.icons.filled.LocationOn
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,6 +125,7 @@ fun AttractionCard(attraction: Attraction, onClick: () -> Unit) {
                     text = attraction.description,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
@@ -132,7 +134,7 @@ fun AttractionCard(attraction: Attraction, onClick: () -> Unit) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.LocationOn, contentDescription = "地址", modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(attraction.address, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                    Text(attraction.address, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
 
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
