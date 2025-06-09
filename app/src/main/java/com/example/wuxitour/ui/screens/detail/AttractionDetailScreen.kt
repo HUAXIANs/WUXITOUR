@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,8 +19,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wuxitour.data.model.Attraction
 import com.example.wuxitour.data.model.Review
 import com.example.wuxitour.data.model.Trip
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Star
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,6 +103,7 @@ fun AttractionDetailContent(
     ) {
         item { Text(attraction.name, style = MaterialTheme.typography.headlineMedium) }
         item { Text(attraction.detailedDescription, style = MaterialTheme.typography.bodyMedium) }
+
         item {
             ReviewSection(
                 reviews = attraction.reviews,
@@ -122,6 +122,9 @@ fun ReviewSection(
         Divider()
         Text("发表您的看法", style = MaterialTheme.typography.titleLarge)
         ReviewInput(onSubmit = onSubmitReview)
+
+        Spacer(Modifier.height(8.dp))
+
         Text("全部评价 (${reviews.size})", style = MaterialTheme.typography.titleLarge)
         if (reviews.isEmpty()) {
             Text("暂无评价，快来抢占第一个沙发吧！")
@@ -141,11 +144,20 @@ fun ReviewInput(
 ) {
     var rating by remember { mutableStateOf(0f) }
     var comment by remember { mutableStateOf("") }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("为这个景点打分：")
-            RatingBar(rating = rating, onRatingChanged = { rating = it })
-            OutlinedTextField(value = comment, onValueChange = { comment = it }, label = { Text("写下您的评论...") }, modifier = Modifier.fillMaxWidth().height(100.dp))
+            RatingBar(
+                rating = rating,
+                onRatingChanged = { rating = it }
+            )
+            OutlinedTextField(
+                value = comment,
+                onValueChange = { comment = it },
+                label = { Text("写下您的评论...") },
+                modifier = Modifier.fillMaxWidth().height(100.dp)
+            )
             Button(
                 onClick = {
                     onSubmit(rating, comment)
@@ -153,8 +165,10 @@ fun ReviewInput(
                     comment = ""
                 },
                 modifier = Modifier.align(Alignment.End),
-                enabled = rating > 0f
-            ) { Text("提交") }
+                enabled = rating > 0f // 必须评分后才能提交
+            ) {
+                Text("提交")
+            }
         }
     }
 }
@@ -171,7 +185,9 @@ fun RatingBar(
                 imageVector = if (i <= rating) Icons.Filled.Star else Icons.Outlined.Star,
                 contentDescription = null,
                 tint = if (i <= rating) Color(0xFFFFC107) else Color.Gray,
-                modifier = Modifier.size(36.dp).clickable { onRatingChanged(i.toFloat()) }
+                modifier = Modifier
+                    .size(36.dp)
+                    .clickable { onRatingChanged(i.toFloat()) }
             )
         }
     }
@@ -189,9 +205,11 @@ fun ReviewItem(review: Review) {
             }
         }
         RatingBar(rating = review.rating, onRatingChanged = {})
+        Spacer(Modifier.height(4.dp))
         Text(review.comment)
     }
 }
+
 
 @Composable
 fun AddToTripDialog(
@@ -207,14 +225,12 @@ fun AddToTripDialog(
                     if (trips.isEmpty()){
                         item { Text("暂无行程，请先去创建", modifier = Modifier.padding(16.dp)) }
                     } else {
-                        // --- 这里是关键修正 ---
-                        // 将错误的 trip.name 和 trip.id 改为 it.name 和 it.id
-                        items(trips, key = { it.id }) {
+                        items(trips, key = { it.id }) { trip ->
                             Text(
-                                text = it.name,
+                                text = trip.name,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onTripSelected(it.id) }
+                                    .clickable { onTripSelected(trip.id) }
                                     .padding(16.dp)
                             )
                         }

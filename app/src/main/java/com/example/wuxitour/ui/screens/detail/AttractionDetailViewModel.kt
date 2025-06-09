@@ -44,13 +44,14 @@ class AttractionDetailViewModel : ViewModel() {
                             )
                         }
                     }.collect()
-                } else if (_uiState.value.isLoading) { // 只有在还在加载时才显示错误，防止覆盖后续更新
+                } else if (_uiState.value.isLoading) {
                     _uiState.update { it.copy(isLoading = false, error = "未找到该景点") }
                 }
             }
         }
     }
 
+    // 新增：提交评论的函数
     fun submitReview(rating: Float, comment: String) {
         uiState.value.attraction?.id?.let { attractionId ->
             MockDataRepository.addReview(attractionId, rating, comment)
