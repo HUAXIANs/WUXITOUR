@@ -16,45 +16,52 @@ data class ProfileUiState(
     val user: User? = null,
     val favorites: List<Attraction> = emptyList(),
     val footprints: List<UserFootprint> = emptyList(),
-    val showLoginDialog: Boolean = false,
-    val showRegisterDialog: Boolean = false,
+    val showLoginDialog: Boolean = false, // 控制登录对话框
+    val showRegisterDialog: Boolean = false, // 控制注册对话框
     val error: String? = null
 )
 
 class ProfileViewModel : ViewModel() {
-
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
-
-    fun onLoginClicked() {
-        _uiState.update { it.copy(showLoginDialog = true) }
-    }
-
-    fun onDismissLoginDialog() {
-        _uiState.update { it.copy(showLoginDialog = false) }
-    }
 
     fun login(username: String, password: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            delay(1000)
-            val mockUser = User(id="user1", username=username, email="$username@example.com", phone="13800000000", avatar=null, nickname="旅行家 $username", points=1250, level=3)
-            _uiState.update {
-                it.copy(isLoading = false, isLoggedIn = true, user = mockUser, showLoginDialog = false)
+            delay(1000) // 模拟网络延迟
+            if (username.isNotBlank() && password.isNotBlank()) {
+                val mockUser = User(
+                    id = "user1", username = username, email = "$username@example.com", phone = "13800000000",
+                    avatar = null, nickname = "旅行家 $username", points = 1250, level = 3
+                )
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoggedIn = true,
+                        user = mockUser,
+                        showLoginDialog = false,
+                        error = null
+                    )
+                }
+                loadFavorites()
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "用户名或密码不能为空") }
             }
-            // 登录成功后加载收藏
-            loadFavorites()
         }
     }
 
     fun logout() {
-        _uiState.value = ProfileUiState() // 重置为初始未登录状态
+        _uiState.value = ProfileUiState() // 退出登录后清空所有状态
+    }
+
+    fun register(username: String, password: String, email: String, phone: String) {
+        // 在模拟场景中，注册成功后直接登录
+        login(username, password)
     }
 
     fun loadFavorites() {
         viewModelScope.launch {
-            // 通过订阅来实时更新收藏列表
-            MockDataRepository.favoriteIdsFlow.collect {
+            MockDataRepository.favoriteIdsFlow.collectLatest {
                 _uiState.update { currentState ->
                     currentState.copy(favorites = MockDataRepository.getFavoriteAttractions())
                 }
@@ -62,10 +69,16 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    // 其他暂未实现的函数
-    fun loadFootprints() {}
-    fun clearError() {}
-    fun showRegisterDialog() {}
-    fun hideRegisterDialog() {}
-    fun register(u: String, p: String, e: String, ph: String) {}
+    // --- 新增：控制对话框显示的函数 ---
+    fun showLoginDialog(show: Boolean) {
+        _uiState.update { it.copy(showLoginDialog = show, showRegisterDialog = false) }
+    }
+
+    fun showRegisterDialog(show: Boolean) {
+        _uiState.update { it.copy(showLoginDialog = false, showRegisterDialog = show) }
+    }
+
+    // 其他函数
+    fun loadFootprints() { /* 暂不实现 */ }
+    fun clearError() { _uiState.update { it.copy(error = null) } }
 }
