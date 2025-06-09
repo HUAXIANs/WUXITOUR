@@ -12,8 +12,8 @@ data class AttractionDetailUiState(
     val isLoading: Boolean = true,
     val attraction: Attraction? = null,
     val isFavorited: Boolean = false,
-    val userTrips: List<Trip> = emptyList(), // 新增：用户的所有行程列表
-    val showAddToTripDialog: Boolean = false, // 新增：控制对话框显示
+    val userTrips: List<Trip> = emptyList(),
+    val showAddToTripDialog: Boolean = false,
     val error: String? = null
 )
 
@@ -24,26 +24,36 @@ class AttractionDetailViewModel : ViewModel() {
     fun loadAttraction(attractionId: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val attraction = MockDataRepository.getAttractionById(attractionId)
 
-            if (attraction != null) {
-                // 同时订阅收藏和行程列表的变化
-                combine(
-                    MockDataRepository.favoriteIdsFlow,
-                    MockDataRepository.tripsFlow
-                ) { favoriteIds, trips ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            attraction = attraction,
-                            isFavorited = favoriteIds.contains(attractionId),
-                            userTrips = trips
-                        )
-                    }
-                }.collect()
-            } else {
-                _uiState.update { it.copy(isLoading = false, error = "未找到该景点") }
+            // 订阅景点列表的变化，这样评论更新后UI可以自动刷新
+            MockDataRepository.attractionsFlow.collect { attractions ->
+                val attraction = attractions.find { it.id == attractionId }
+
+                if (attraction != null) {
+                    // 同时订阅收藏和行程列表的变化
+                    combine(
+                        MockDataRepository.favoriteIdsFlow,
+                        MockDataRepository.tripsFlow
+                    ) { favoriteIds, trips ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                attraction = attraction,
+                                isFavorited = favoriteIds.contains(attractionId),
+                                userTrips = trips
+                            )
+                        }
+                    }.collect()
+                } else if (_uiState.value.isLoading) { // 只有在还在加载时才显示错误，防止覆盖后续更新
+                    _uiState.update { it.copy(isLoading = false, error = "未找到该景点") }
+                }
             }
+        }
+    }
+
+    fun submitReview(rating: Float, comment: String) {
+        uiState.value.attraction?.id?.let { attractionId ->
+            MockDataRepository.addReview(attractionId, rating, comment)
         }
     }
 
@@ -51,7 +61,6 @@ class AttractionDetailViewModel : ViewModel() {
         uiState.value.attraction?.let { MockDataRepository.toggleFavoriteStatus(it.id) }
     }
 
-    // --- 新增的函数 ---
     fun showAddToTripDialog(show: Boolean) {
         _uiState.update { it.copy(showAddToTripDialog = show) }
     }
@@ -61,6 +70,6 @@ class AttractionDetailViewModel : ViewModel() {
         if (attractionId != null) {
             MockDataRepository.addAttractionToTrip(tripId, attractionId)
         }
-        showAddToTripDialog(false) // 关闭对话框
+        showAddToTripDialog(false)
     }
 }
