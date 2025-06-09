@@ -161,6 +161,7 @@ fun ReviewInput(
             Button(
                 onClick = {
                     onSubmit(rating, comment)
+                    // 提交后清空
                     rating = 0f
                     comment = ""
                 },
@@ -209,7 +210,6 @@ fun ReviewItem(review: Review) {
         Text(review.comment)
     }
 }
-
 
 @Composable
 fun AddToTripDialog(
