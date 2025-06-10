@@ -20,6 +20,10 @@ data class AttractionDetailUiState(
 class AttractionDetailViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(AttractionDetailUiState())
     val uiState: StateFlow<AttractionDetailUiState> = _uiState.asStateFlow()
+    // 新增：创建一个私有的、可变的 SharedFlow 用于发送消息
+    private val _userMessage = MutableSharedFlow<String>()
+    // 新增：创建一个公开的、只读的 SharedFlow 供UI层订阅
+    val userMessage = _userMessage.asSharedFlow()
 
     fun loadAttraction(attractionId: String) {
         viewModelScope.launch {
@@ -69,8 +73,17 @@ class AttractionDetailViewModel : ViewModel() {
     fun addAttractionToTrip(tripId: String) {
         val attractionId = uiState.value.attraction?.id
         if (attractionId != null) {
+            // 调用仓库方法将景点添加到行程
             MockDataRepository.addAttractionToTrip(tripId, attractionId)
+
+            // 新增：发送成功提示消息
+            viewModelScope.launch {
+                // 从仓库获取行程名称，使提示更友好
+                val trip = MockDataRepository.getTripById(tripId)
+                _userMessage.emit("已成功添加到行程: ${trip?.name ?: ""}")
+            }
         }
+        // 操作完成后关闭对话框
         showAddToTripDialog(false)
     }
 }

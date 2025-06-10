@@ -19,6 +19,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wuxitour.data.model.Attraction
 import com.example.wuxitour.data.model.Review
 import com.example.wuxitour.data.model.Trip
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,8 +37,19 @@ fun AttractionDetailScreen(
     }
 
     val uiState by viewModel.uiState.collectAsState()
+// 新增：创建 Snackbar 所需的状态和协程作用域
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    // 新增：使用 LaunchedEffect 来监听来自 ViewModel 的消息
+    LaunchedEffect(Unit) {
+        viewModel.userMessage.collect { message ->
+            scope.launch {
+                snackbarHostState.showSnackbar(message)
+            }
+        }
+    }
 
-    Scaffold(
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(uiState.attraction?.name ?: "详情") },
