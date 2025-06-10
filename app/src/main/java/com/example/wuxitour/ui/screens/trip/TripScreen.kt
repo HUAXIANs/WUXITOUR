@@ -1,24 +1,31 @@
 package com.example.wuxitour.ui.screens.trip
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wuxitour.data.model.Trip
-import java.text.SimpleDateFormat
-import java.util.*
+import com.example.wuxitour.utils.Utils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TripScreen(viewModel: TripViewModel = viewModel()) {
+fun TripScreen(
+    viewModel: TripViewModel = viewModel(),
+    // 新增：接收一个导航事件，用于点击卡片时跳转
+    onNavigateToTripDetail: (String) -> Unit
+) {
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
@@ -34,11 +41,28 @@ fun TripScreen(viewModel: TripViewModel = viewModel()) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item { Text("我的行程", style = MaterialTheme.typography.headlineMedium) }
-            if (uiState.trips.isEmpty()) {
-                item { Text("暂无行程，点击右下角按钮创建吧！") }
+
+            if (uiState.isLoading) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+            } else if (uiState.trips.isEmpty()) {
+                item {
+                    Text(
+                        "暂无行程，点击右下角按钮创建吧！",
+                        modifier = Modifier.padding(top = 32.dp),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
             } else {
                 items(uiState.trips, key = { it.id }) { trip ->
-                    TripCard(trip = trip, onDelete = { viewModel.deleteTrip(trip.id) })
+                    TripCard(
+                        trip = trip,
+                        onClick = { onNavigateToTripDetail(trip.id) },
+                        onDelete = { viewModel.deleteTrip(trip.id) }
+                    )
                 }
             }
         }
@@ -52,10 +76,70 @@ fun TripScreen(viewModel: TripViewModel = viewModel()) {
     }
 }
 
+/**
+ * 这是补全后的行程卡片UI
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TripCard(trip: Trip, onDelete: () -> Unit) {
-    // ... TripCard UI 保持不变 ...
+fun TripCard(
+    trip: Trip,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(trip.name, style = MaterialTheme.typography.titleLarge)
+                // 为删除按钮增加一个小的点击区域，防止误触
+                IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "删除行程",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (trip.description?.isNotBlank() == true) {
+                Text(
+                    text = trip.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Divider()
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "包含 ${trip.attractions.size} 个景点",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "日期: ${Utils.formatTimestamp(trip.startDate, "yyyy-MM-dd")}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
 }
+
 
 @Composable
 fun CreateTripDialog(
@@ -65,6 +149,7 @@ fun CreateTripDialog(
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
+    // 对话框的UI保持不变
     Dialog(onDismissRequest = onDismiss) {
         Card(modifier = Modifier.padding(16.dp)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -74,7 +159,13 @@ fun CreateTripDialog(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text("取消") }
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick = { onCreate(name, description) }) { Text("创建") }
+                    Button(onClick = {
+                        if (name.isNotBlank()) {
+                            onCreate(name, description)
+                        }
+                    }) {
+                        Text("创建")
+                    }
                 }
             }
         }

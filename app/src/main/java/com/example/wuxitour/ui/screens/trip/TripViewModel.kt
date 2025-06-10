@@ -39,8 +39,8 @@ class TripViewModel : ViewModel() {
     }
 
     fun deleteTrip(id: String) {
-        // Mock deletion - For now, we will just remove from the list.
-        // In a real app, this would be a repository call.
+        // 更新：调用仓库来执行删除逻辑
+        MockDataRepository.deleteTrip(id)
     }
 
     // --- 新增的函数 ---

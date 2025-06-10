@@ -22,6 +22,7 @@ import com.example.wuxitour.ui.screens.home.HomeScreen
 import com.example.wuxitour.ui.screens.profile.ProfileScreen
 import com.example.wuxitour.ui.screens.trip.TripScreen
 import com.example.wuxitour.ui.theme.WuxiTourTheme
+import com.example.wuxitour.ui.screens.trip_detail.TripDetailScreen
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -54,7 +55,10 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             AttractionsScreen(onAttractionClick = { id -> navController.navigate("attraction_detail/$id") })
         }
         composable(BottomNavItem.Trip.route) {
-            TripScreen()
+            TripScreen(onNavigateToTripDetail = { tripId ->
+                navController.navigate("trip_detail/$tripId")
+            }
+            )
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(onNavigateToAttraction = { id -> navController.navigate("attraction_detail/$id") })
@@ -68,6 +72,21 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             AttractionDetailScreen(
                 attractionId = attractionId,
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "trip_detail/{tripId}",
+            arguments = listOf(navArgument("tripId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val tripId = backStackEntry.arguments?.getString("tripId")
+            requireNotNull(tripId)
+            // TripDetailScreen 是我们下一阶段要完善的页面
+            TripDetailScreen(
+                tripId = tripId,
+                onBackClick = { navController.popBackStack() },
+                onNavigateToAttraction = { attractionId ->
+                    navController.navigate("attraction_detail/$attractionId")
+                }
             )
         }
     }

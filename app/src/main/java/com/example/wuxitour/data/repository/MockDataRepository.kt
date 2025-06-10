@@ -51,7 +51,35 @@ object MockDataRepository {
         currentTrips.add(newTrip)
         trips.value = currentTrips
     }
+    // 新增：删除行程的函数
+    fun deleteTrip(tripId: String) {
+        val currentTrips = trips.value.toMutableList()
+        currentTrips.removeAll { it.id == tripId }
+        trips.value = currentTrips
+    }
+    // 新增：从行程中移除一个景点
+    fun removeAttractionFromTrip(tripId: String, attractionId: String) {
+        val currentTrips = trips.value.toMutableList()
+        val tripIndex = currentTrips.indexOfFirst { it.id == tripId }
+        if (tripIndex != -1) {
+            val oldTrip = currentTrips[tripIndex]
+            val newAttractions = oldTrip.attractions.toMutableList()
+            newAttractions.removeAll { it.attraction.id == attractionId }
+            currentTrips[tripIndex] = oldTrip.copy(attractions = newAttractions)
+            trips.value = currentTrips
+        }
+    }
 
+    // 新增：为行程中的景点列表重新排序
+    fun reorderAttractionsInTrip(tripId: String, sortedAttractions: List<TripAttraction>) {
+        val currentTrips = trips.value.toMutableList()
+        val tripIndex = currentTrips.indexOfFirst { it.id == tripId }
+        if (tripIndex != -1) {
+            val oldTrip = currentTrips[tripIndex]
+            currentTrips[tripIndex] = oldTrip.copy(attractions = sortedAttractions)
+            trips.value = currentTrips
+        }
+    }
     fun addAttractionToTrip(tripId: String, attractionId: String) {
         val attractionToAdd = getAttractionById(attractionId) ?: return
         val currentTrips = trips.value.toMutableList()
@@ -92,6 +120,7 @@ object MockDataRepository {
             _mockAttractions.value = currentAttractions // 触发StateFlow更新
         }
     }
+
 
     // --- 其他通用数据获取函数 ---
     fun getMockAttractions(): List<Attraction> = attractionsFlow.value
