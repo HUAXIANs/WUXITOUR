@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Star
@@ -15,6 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wuxitour.data.model.Attraction
 import com.example.wuxitour.data.model.Review
@@ -24,16 +29,38 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import com.example.wuxitour.data.repository.AttractionRepository
+import com.example.wuxitour.data.repository.TripRepository
+import com.example.wuxitour.data.repository.UserRepository
+
+class AttractionDetailViewModelFactory(
+    private val attractionRepository: AttractionRepository,
+    private val tripRepository: TripRepository,
+    private val userRepository: UserRepository,
+    private val savedStateHandle: SavedStateHandle
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AttractionDetailViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return AttractionDetailViewModel(attractionRepository, tripRepository, userRepository, savedStateHandle) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttractionDetailScreen(
     attractionId: String,
-    viewModel: AttractionDetailViewModel = viewModel(),
     onBackClick: () -> Unit
 ) {
+    val attractionRepository = remember { AttractionRepository() }
+    val tripRepository = remember { TripRepository(attractionRepository) }
+    val userRepository = remember { UserRepository() }
+    val viewModel: AttractionDetailViewModel = viewModel(factory = AttractionDetailViewModelFactory(attractionRepository, tripRepository, userRepository, SavedStateHandle()))
+
     LaunchedEffect(attractionId) {
-        viewModel.loadAttraction(attractionId)
+        viewModel.loadAttraction()
     }
 
     val uiState by viewModel.uiState.collectAsState()
@@ -82,10 +109,7 @@ fun AttractionDetailScreen(
                     Column {
                         AttractionDetailContent(
                             modifier = Modifier.weight(1f),
-                            attraction = attraction,
-                            onSubmitReview = { rating, comment ->
-                                viewModel.submitReview(rating, comment)
-                            }
+                            attraction = attraction
                         )
                         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             OutlinedButton(onClick = { /* TODO */ }, modifier = Modifier.weight(1f)) { Text("语音导览") }
@@ -109,26 +133,115 @@ fun AttractionDetailScreen(
 @Composable
 fun AttractionDetailContent(
     modifier: Modifier = Modifier,
-    attraction: Attraction,
-    onSubmitReview: (rating: Float, comment: String) -> Unit
+    attraction: Attraction
 ) {
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { Text(attraction.name, style = MaterialTheme.typography.headlineMedium) }
-        item { Text(attraction.detailedDescription, style = MaterialTheme.typography.bodyMedium) }
-
+        // 基本信息
         item {
-            ReviewSection(
-                reviews = attraction.reviews,
-                onSubmitReview = onSubmitReview
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(attraction.name, style = MaterialTheme.typography.headlineMedium)
+                Text(attraction.description, style = MaterialTheme.typography.bodyMedium)
+                
+                // 标签
+                if (attraction.tags.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        attraction.tags.forEach { tag ->
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.secondaryContainer
+                            ) {
+                                Text(
+                                    text = tag,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
+
+        // 详细信息
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("详细信息", style = MaterialTheme.typography.titleLarge)
+                Text(attraction.detailedDescription, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
+        // 开放信息
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("开放信息", style = MaterialTheme.typography.titleLarge)
+                InfoRow("开放时间", attraction.openingHours)
+                InfoRow("门票信息", attraction.ticketInfo)
+                InfoRow("价格", attraction.price)
+                InfoRow("联系电话", attraction.phone)
+                InfoRow("官方网站", attraction.website)
+            }
+        }
+
+        // 设施信息
+        if (attraction.facilities.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("设施服务", style = MaterialTheme.typography.titleLarge)
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        attraction.facilities.forEach { facility ->
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.tertiaryContainer
+                            ) {
+                                Text(
+                                    text = facility,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 评价部分
+        // TODO: Future: Re-implement review functionality if a dedicated ReviewRepository is added
+        // item {
+        //     ReviewSection(\n        //         reviews = attraction.reviews,\n        //         onSubmitReview = onSubmitReview\n        //     )\n        // }\n    }
     }
 }
 
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
+// TODO: Future: Re-implement review functionality if a dedicated ReviewRepository is added
+/*
 @Composable
 fun ReviewSection(
     reviews: List<Review>,
@@ -161,50 +274,35 @@ fun ReviewInput(
     var rating by remember { mutableStateOf(0f) }
     var comment by remember { mutableStateOf("") }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("为这个景点打分：")
-            RatingBar(
-                rating = rating,
-                onRatingChanged = { rating = it }
-            )
-            OutlinedTextField(
-                value = comment,
-                onValueChange = { comment = it },
-                label = { Text("写下您的评论...") },
-                modifier = Modifier.fillMaxWidth().height(100.dp)
-            )
-            Button(
-                onClick = {
-                    onSubmit(rating, comment)
-                    // 提交后清空
-                    rating = 0f
-                    comment = ""
-                },
-                modifier = Modifier.align(Alignment.End),
-                enabled = rating > 0f // 必须评分后才能提交
-            ) {
-                Text("提交")
-            }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("评分:", modifier = Modifier.width(50.dp))
+            StarRatingBar(rating = rating) { newRating -> rating = newRating }
+        }
+        OutlinedTextField(
+            value = comment,
+            onValueChange = { comment = it },
+            label = { Text("您的评论") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3
+        )
+        Button(onClick = { onSubmit(rating, comment) }) {
+            Text("提交评论")
         }
     }
 }
 
 @Composable
-fun RatingBar(
-    rating: Float,
-    onRatingChanged: (Float) -> Unit,
-    maxRating: Int = 5
-) {
+fun StarRatingBar(rating: Float, onRatingChanged: (Float) -> Unit) {
     Row {
-        for (i in 1..maxRating) {
+        for (i in 1..5) {
             Icon(
                 imageVector = if (i <= rating) Icons.Filled.Star else Icons.Outlined.Star,
                 contentDescription = null,
-                tint = if (i <= rating) Color(0xFFFFC107) else Color.Gray,
+                tint = if (i <= rating) MaterialTheme.colorScheme.primary else Color.Gray,
                 modifier = Modifier
-                    .size(36.dp)
                     .clickable { onRatingChanged(i.toFloat()) }
+                    .padding(4.dp)
             )
         }
     }
@@ -212,20 +310,20 @@ fun RatingBar(
 
 @Composable
 fun ReviewItem(review: Review) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.AccountCircle, contentDescription = "avatar", modifier = Modifier.size(40.dp))
+            Text(review.userName, style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.width(8.dp))
-            Column {
-                Text(review.userName, fontWeight = FontWeight.Bold)
-                Text(review.date, style = MaterialTheme.typography.bodySmall)
-            }
+            StarRatingBar(rating = review.rating, onRatingChanged = { /* Read-only */ })
         }
-        RatingBar(rating = review.rating, onRatingChanged = {})
-        Spacer(Modifier.height(4.dp))
-        Text(review.comment)
+        Text(review.comment, style = MaterialTheme.typography.bodyMedium)
+        Text(review.date, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
     }
 }
+*/
 
 @Composable
 fun AddToTripDialog(

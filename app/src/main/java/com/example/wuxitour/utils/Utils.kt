@@ -1,48 +1,7 @@
 package com.example.wuxitour.utils
 
-import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.*
-
-/**
- * 日志工具类
- */
-object Logger {
-    private const val TAG = "WuxiTour"
-    private var isDebugMode = true
-    
-    fun d(message: String, tag: String = TAG) {
-        if (isDebugMode) {
-            Log.d(tag, message)
-        }
-    }
-    
-    fun i(message: String, tag: String = TAG) {
-        if (isDebugMode) {
-            Log.i(tag, message)
-        }
-    }
-    
-    fun w(message: String, tag: String = TAG) {
-        if (isDebugMode) {
-            Log.w(tag, message)
-        }
-    }
-    
-    fun e(message: String, throwable: Throwable? = null, tag: String = TAG) {
-        if (isDebugMode) {
-            if (throwable != null) {
-                Log.e(tag, message, throwable)
-            } else {
-                Log.e(tag, message)
-            }
-        }
-    }
-    
-    fun setDebugMode(enabled: Boolean) {
-        isDebugMode = enabled
-    }
-}
 
 /**
  * 常用工具函数

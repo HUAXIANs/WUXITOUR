@@ -23,6 +23,7 @@ import com.example.wuxitour.ui.screens.profile.ProfileScreen
 import com.example.wuxitour.ui.screens.trip.TripScreen
 import com.example.wuxitour.ui.theme.WuxiTourTheme
 import com.example.wuxitour.ui.screens.trip_detail.TripDetailScreen
+import com.example.wuxitour.ui.screens.guide.GuideScreen
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -62,6 +63,9 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(onNavigateToAttraction = { id -> navController.navigate("attraction_detail/$id") })
+        }
+        composable(BottomNavItem.Guide.route) {
+            GuideScreen()
         }
         composable(
             route = "attraction_detail/{attractionId}",

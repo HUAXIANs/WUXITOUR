@@ -15,6 +15,7 @@ sealed class BottomNavItem(
     object Home : BottomNavItem("home", "首页", Icons.Default.Home)
     object Attractions : BottomNavItem("attractions", "景点", Icons.Default.Place)
     object Trip : BottomNavItem("trip", "行程", Icons.Default.Map)
+    object Guide : BottomNavItem("guide", "导览", Icons.Default.Headphones)
     object Profile : BottomNavItem("profile", "我的", Icons.Default.Person)
 }
 
@@ -25,6 +26,7 @@ val bottomNavItems = listOf(
     BottomNavItem.Home,
     BottomNavItem.Attractions,
     BottomNavItem.Trip,
+    BottomNavItem.Guide,
     BottomNavItem.Profile
 )
 

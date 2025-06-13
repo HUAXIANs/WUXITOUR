@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.wuxitour.data.model.Activity
@@ -30,12 +32,27 @@ import com.example.wuxitour.data.model.Category
 import com.example.wuxitour.data.model.WeatherInfo
 import com.example.wuxitour.ui.screens.attractions.AttractionCard
 import kotlinx.coroutines.launch
+import com.example.wuxitour.data.repository.AttractionRepository
+import com.example.wuxitour.data.repository.UserRepository
+import androidx.compose.runtime.remember
+
+class HomeViewModelFactory(private val attractionRepository: AttractionRepository, private val userRepository: UserRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return HomeViewModel(attractionRepository, userRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = viewModel(),
     onAttractionClick: (String) -> Unit
 ) {
+    val attractionRepository = remember { AttractionRepository() }
+    val userRepository = remember { UserRepository() }
+    val viewModel: HomeViewModel = viewModel(factory = HomeViewModelFactory(attractionRepository, userRepository))
     val uiState by viewModel.uiState.collectAsState()
 
     if (uiState.isLoading) {
@@ -57,14 +74,18 @@ fun HomeScreen(
                 )
             }
 
-            // --- 新增：轮播图模块 ---
-            item {
-                BannerSection(banners = homeData.banners)
+            // 轮播图模块
+            if (homeData.banners.isNotEmpty()) {
+                item {
+                    BannerSection(banners = homeData.banners)
+                }
             }
 
-            // --- 新增：分类导航模块 ---
-            item {
-                CategorySection(categories = homeData.categories)
+            // 分类导航模块
+            if (homeData.categories.isNotEmpty()) {
+                item {
+                    CategorySection(categories = homeData.categories)
+                }
             }
 
             if (homeData.hotAttractions.isNotEmpty()) {
@@ -79,8 +100,34 @@ fun HomeScreen(
                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                         AttractionCard(
                             attraction = attraction,
-                            onClick = { onAttractionClick(attraction.id) }
+                            onClick = { onAttractionClick(attraction.id) },
+                            onFavoriteClick = { viewModel.onFavoriteClick(attraction) }
                         )
+                    }
+                }
+            }
+
+            // 天气信息
+            homeData.weather?.let { weather ->
+                if (weather.temperature.isNotBlank()) {
+                    item {
+                        WeatherCard(weather = weather)
+                    }
+                }
+            }
+
+            // 活动信息
+            if (homeData.activities.isNotEmpty()) {
+                item {
+                    Text(
+                        "近期活动",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                items(homeData.activities, key = { it.id }) { activity ->
+                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        ActivityCard(activity = activity)
                     }
                 }
             }
@@ -88,7 +135,7 @@ fun HomeScreen(
     }
 }
 
-// --- 新增：轮播图UI组件 ---
+// 轮播图UI组件
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BannerSection(banners: List<Banner>) {
@@ -110,8 +157,7 @@ fun BannerSection(banners: List<Banner>) {
                     model = banners[page].imageUrl,
                     contentDescription = banners[page].title,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    placeholder = androidx.compose.ui.graphics.painter.ColorPainter(Color.Gray)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
@@ -135,7 +181,7 @@ fun BannerSection(banners: List<Banner>) {
     }
 }
 
-// --- 新增：分类导航UI组件 ---
+// 分类导航UI组件
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategorySection(categories: List<Category>) {
@@ -172,14 +218,56 @@ fun CategorySection(categories: List<Category>) {
     }
 }
 
-
-// WeatherCard 和 ActivityCard 等其他组件保持不变
+// 天气卡片
 @Composable
 fun WeatherCard(weather: WeatherInfo) {
-    // ...
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text("温度: ${weather.temperature}", style = MaterialTheme.typography.bodyLarge)
+            Text("状况: ${weather.condition}", style = MaterialTheme.typography.bodyMedium)
+            Text("湿度: ${weather.humidity}", style = MaterialTheme.typography.bodySmall)
+            Text("风速: ${weather.windSpeed}", style = MaterialTheme.typography.bodySmall)
+            Text("空气质量: ${weather.airQuality}", style = MaterialTheme.typography.bodySmall)
+            Text("出行建议: ${weather.suggestion}", style = MaterialTheme.typography.bodySmall)
+        }
+    }
 }
 
+// 活动卡片
 @Composable
 fun ActivityCard(activity: Activity) {
-    // ...
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                activity.title,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                activity.description,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    activity.date,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    activity.location,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
 }

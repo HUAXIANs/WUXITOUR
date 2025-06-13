@@ -15,17 +15,35 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wuxitour.data.model.Trip
 import com.example.wuxitour.utils.Utils
+import com.example.wuxitour.data.repository.AttractionRepository
+import com.example.wuxitour.data.repository.TripRepository
+import com.example.wuxitour.data.repository.UserRepository
+import androidx.compose.runtime.remember
+
+class TripViewModelFactory(private val tripRepository: TripRepository, private val userRepository: UserRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(TripViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return TripViewModel(tripRepository, userRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripScreen(
-    viewModel: TripViewModel = viewModel(),
-    // 新增：接收一个导航事件，用于点击卡片时跳转
     onNavigateToTripDetail: (String) -> Unit
 ) {
+    val attractionRepository = remember { AttractionRepository() }
+    val tripRepository = remember { TripRepository(attractionRepository) }
+    val userRepository = remember { UserRepository() }
+    val viewModel: TripViewModel = viewModel(factory = TripViewModelFactory(tripRepository, userRepository))
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(

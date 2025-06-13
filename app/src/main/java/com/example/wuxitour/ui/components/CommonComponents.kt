@@ -198,18 +198,14 @@ fun AnimatedCounter(
     animationDuration: Int = 1000,
     textStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.headlineMedium
 ) {
-    var currentValue by remember { mutableStateOf(0) }
-    
-    LaunchedEffect(targetValue) {
-        val step = targetValue / (animationDuration / 50)
-        while (currentValue < targetValue) {
-            currentValue = minOf(currentValue + step, targetValue)
-            delay(50)
-        }
-    }
+    val animatedValue by animateIntAsState(
+        targetValue = targetValue,
+        animationSpec = tween(durationMillis = animationDuration, easing = LinearOutSlowInEasing),
+        label = "AnimatedCounter"
+    )
     
     Text(
-        text = currentValue.toString(),
+        text = animatedValue.toString(),
         modifier = modifier,
         style = textStyle
     )
@@ -281,8 +277,7 @@ fun RatingStars(
     maxRating: Int = 5,
     starSize: Dp = 16.dp,
     filledColor: Color = Color(0xFFFFD700),
-    emptyColor: Color = Color(0xFFE0E0E0),
-    size: Dp
+    emptyColor: Color = Color(0xFFE0E0E0)
 ) {
     Row(modifier = modifier) {
         repeat(maxRating) { index ->

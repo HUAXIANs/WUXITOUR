@@ -14,18 +14,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.wuxitour.data.model.Attraction
 import com.example.wuxitour.data.model.TripAttraction
 import com.example.wuxitour.ui.screens.attractions.AttractionCard
+import com.example.wuxitour.data.repository.TripRepository
+import com.example.wuxitour.data.repository.UserRepository
+import androidx.compose.runtime.remember
+import com.example.wuxitour.data.repository.AttractionRepository
+
+class TripDetailViewModelFactory(private val repository: TripRepository, private val userRepository: UserRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(TripDetailViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return TripDetailViewModel(repository, userRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripDetailScreen(
     tripId: String,
-    viewModel: TripDetailViewModel = viewModel(),
     onBackClick: () -> Unit,
     onNavigateToAttraction: (String) -> Unit
 ) {
+    val tripRepository = remember { TripRepository(attractionRepository = AttractionRepository()) }
+    val userRepository = remember { UserRepository() }
+    val viewModel: TripDetailViewModel = viewModel(factory = TripDetailViewModelFactory(tripRepository, userRepository))
+
     // 使用 LaunchedEffect 并以 tripId 作为 key，确保在 tripId 变化时重新加载数据
     LaunchedEffect(tripId) {
         viewModel.loadTripDetails(tripId)
@@ -89,7 +109,8 @@ fun TripDetailScreen(
                                 index = index + 1,
                                 tripAttraction = tripAttraction,
                                 onRemoveClick = { viewModel.removeAttraction(tripAttraction.attraction.id) },
-                                onCardClick = { onNavigateToAttraction(tripAttraction.attraction.id) }
+                                onCardClick = { onNavigateToAttraction(tripAttraction.attraction.id) },
+                                onFavoriteClick = { attraction -> viewModel.toggleFavoriteAttraction(attraction) }
                             )
                         }
                     }
@@ -108,7 +129,8 @@ fun TripAttractionItem(
     index: Int,
     tripAttraction: TripAttraction,
     onRemoveClick: () -> Unit,
-    onCardClick: () -> Unit
+    onCardClick: () -> Unit,
+    onFavoriteClick: (Attraction) -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -125,7 +147,8 @@ fun TripAttractionItem(
         Box(modifier = Modifier.weight(1f)) {
             AttractionCard(
                 attraction = tripAttraction.attraction,
-                onClick = onCardClick
+                onClick = onCardClick,
+                onFavoriteClick = onFavoriteClick
             )
         }
 

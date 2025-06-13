@@ -12,62 +12,51 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.wuxitour.data.model.Attraction
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.wuxitour.data.model.GuideItem
+import com.example.wuxitour.data.repository.GuideRepository
+import androidx.compose.runtime.remember
+
+class GuideViewModelFactory(private val guideRepository: GuideRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(GuideViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return GuideViewModel(guideRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 /**
  * 语音导览页面
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GuideScreen() {
-    var isPlaying by remember { mutableStateOf(false) }
-    var currentGuide by remember { mutableStateOf<GuideItem?>(null) }
-    
-    val guideItems = remember {
-        listOf(
-            GuideItem(
-                id = "1",
-                title = "鼋头渚景区导览",
-                description = "太湖佳绝处，毕竟在鼋头",
-                duration = "15分钟",
-                language = "中文",
-                category = "自然景观"
-            ),
-            GuideItem(
-                id = "2",
-                title = "灵山大佛文化讲解",
-                description = "了解佛教文化和大佛建造历史",
-                duration = "20分钟",
-                language = "中文",
-                category = "人文景观"
-            ),
-            GuideItem(
-                id = "3",
-                title = "拈花湾禅意小镇",
-                description = "体验东方禅意文化",
-                duration = "12分钟",
-                language = "中文",
-                category = "文化体验"
-            ),
-            GuideItem(
-                id = "4",
-                title = "蠡园历史故事",
-                description = "西施传说与江南园林",
-                duration = "10分钟",
-                language = "中文",
-                category = "历史文化"
-            ),
-            GuideItem(
-                id = "5",
-                title = "锡惠公园古迹",
-                description = "无锡最古老的园林景观",
-                duration = "18分钟",
-                language = "中文",
-                category = "历史文化"
-            )
-        )
+fun GuideScreen(
+) {
+    val guideRepository = remember { GuideRepository() }
+    val viewModel: GuideViewModel = viewModel(factory = GuideViewModelFactory(guideRepository))
+    val uiState by viewModel.uiState.collectAsState()
+
+    if (uiState.isLoading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
     }
-    
+
+    uiState.error?.let { error ->
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -83,7 +72,7 @@ fun GuideScreen() {
         Spacer(modifier = Modifier.height(16.dp))
         
         // 当前播放控制器
-        if (currentGuide != null) {
+        uiState.currentGuide?.let { guide ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
@@ -103,7 +92,7 @@ fun GuideScreen() {
                     Spacer(modifier = Modifier.height(4.dp))
                     
                     Text(
-                        text = currentGuide!!.title,
+                        text = guide.title,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -113,7 +102,7 @@ fun GuideScreen() {
                     
                     // 进度条
                     LinearProgressIndicator(
-                        progress = 0.3f, // 模拟播放进度
+                        progress = uiState.progress,
                         modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -126,7 +115,7 @@ fun GuideScreen() {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "03:45 / ${currentGuide!!.duration}",
+                            text = "${(uiState.progress * guide.duration.toInt()).toInt()}:00 / ${guide.duration}",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -143,11 +132,17 @@ fun GuideScreen() {
                             }
                             
                             IconButton(
-                                onClick = { isPlaying = !isPlaying }
+                                onClick = { 
+                                    if (uiState.isPlaying) {
+                                        viewModel.pauseGuide()
+                                    } else {
+                                        viewModel.playGuide(guide)
+                                    }
+                                }
                             ) {
                                 Icon(
-                                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) "暂停" else "播放",
+                                    if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (uiState.isPlaying) "暂停" else "播放",
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
@@ -163,10 +158,7 @@ fun GuideScreen() {
                             }
                             
                             IconButton(
-                                onClick = { 
-                                    currentGuide = null
-                                    isPlaying = false
-                                }
+                                onClick = { viewModel.stopGuide() }
                             ) {
                                 Icon(
                                     Icons.Default.Close,
@@ -194,17 +186,14 @@ fun GuideScreen() {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(guideItems) { guide ->
+            items(uiState.guides) { guide ->
                 GuideItemCard(
                     guide = guide,
-                    isPlaying = currentGuide?.id == guide.id && isPlaying,
-                    onPlay = {
-                        currentGuide = guide
-                        isPlaying = true
-                    },
-                    onPause = {
-                        isPlaying = false
-                    }
+                    isPlaying = uiState.currentGuide?.id == guide.id && uiState.isPlaying,
+                    isDownloaded = uiState.downloadedGuides.contains(guide.id),
+                    onPlay = { viewModel.playGuide(guide) },
+                    onPause = { viewModel.pauseGuide() },
+                    onDownload = { viewModel.downloadGuide(guide) }
                 )
             }
         }
@@ -216,8 +205,10 @@ fun GuideScreen() {
 fun GuideItemCard(
     guide: GuideItem,
     isPlaying: Boolean,
+    isDownloaded: Boolean,
     onPlay: () -> Unit,
-    onPause: () -> Unit
+    onPause: () -> Unit,
+    onDownload: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -327,12 +318,16 @@ fun GuideItemCard(
             
             // 下载按钮
             IconButton(
-                onClick = { /* TODO: 下载导览 */ }
+                onClick = onDownload,
+                enabled = !isDownloaded
             ) {
                 Icon(
-                    Icons.Default.Download,
-                    contentDescription = "下载",
-                    tint = MaterialTheme.colorScheme.primary
+                    if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
+                    contentDescription = if (isDownloaded) "已下载" else "下载",
+                    tint = if (isDownloaded) 
+                        MaterialTheme.colorScheme.onSurfaceVariant 
+                    else 
+                        MaterialTheme.colorScheme.primary
                 )
             }
         }

@@ -13,15 +13,33 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wuxitour.data.model.User
 import com.example.wuxitour.ui.screens.attractions.AttractionCard
+import com.example.wuxitour.data.repository.UserRepository
+import com.example.wuxitour.data.repository.AttractionRepository
+import androidx.compose.runtime.remember
+
+class ProfileViewModelFactory(private val userRepository: UserRepository, private val attractionRepository: AttractionRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ProfileViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return ProfileViewModel(userRepository, attractionRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel = viewModel(),
     onNavigateToAttraction: (String) -> Unit
 ) {
+    val userRepository = remember { UserRepository() }
+    val attractionRepository = remember { AttractionRepository() }
+    val viewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory(userRepository, attractionRepository))
+
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState.isLoggedIn) {
@@ -57,7 +75,8 @@ fun ProfileScreen(
                             uiState.favorites.forEach { attraction ->
                                 AttractionCard(
                                     attraction = attraction,
-                                    onClick = { onNavigateToAttraction(attraction.id) }
+                                    onClick = { onNavigateToAttraction(attraction.id) },
+                                    onFavoriteClick = { viewModel.toggleFavoriteAttraction(it) }
                                 )
                                 Spacer(Modifier.height(8.dp))
                             }
@@ -81,7 +100,7 @@ fun ProfileScreen(
         RegisterDialog(
             isLoading = uiState.isLoading,
             onDismiss = { viewModel.showRegisterDialog(false) },
-            onRegister = { username, password, email, phone -> viewModel.register(username, password, email, phone) },
+            onRegister = { username, password, email -> viewModel.register(username, password, email) },
             onLogin = { viewModel.showLoginDialog(true) }
         )
     }
@@ -156,11 +175,10 @@ fun LoginDialog(isLoading: Boolean, onDismiss: () -> Unit, onLogin: (String, Str
 }
 
 @Composable
-fun RegisterDialog(isLoading: Boolean, onDismiss: () -> Unit, onRegister: (String, String, String, String) -> Unit, onLogin: () -> Unit) {
+fun RegisterDialog(isLoading: Boolean, onDismiss: () -> Unit, onRegister: (String, String, String) -> Unit, onLogin: () -> Unit) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
     Dialog(onDismissRequest = onDismiss) {
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -168,8 +186,7 @@ fun RegisterDialog(isLoading: Boolean, onDismiss: () -> Unit, onRegister: (Strin
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("用户名") })
                 OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码") }, visualTransformation = PasswordVisualTransformation())
                 OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("邮箱") })
-                OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("手机号 (可选)") })
-                Button(onClick = { onRegister(username, password, email, phone) }, enabled = isLoading, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = { onRegister(username, password, email) }, enabled = isLoading, modifier = Modifier.fillMaxWidth()) {
                     if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp)) else Text("注册")
                 }
                 TextButton(onClick = onLogin, modifier = Modifier.align(Alignment.End)) { Text("已有账号？去登录") }
