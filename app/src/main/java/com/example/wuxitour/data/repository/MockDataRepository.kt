@@ -28,7 +28,7 @@ object MockDataRepository {
             longitude = 120.27,
             openingHours = "全天",
             phone = "0510-12345678",
-            website = "http://www.taihu.com",
+            website = listOf("http://www.taihu.com"),
             ticketInfo = "免费开放",
             facilities = listOf("停车场", "游客中心", "观景台"),
             reviews = mutableListOf(
@@ -59,7 +59,7 @@ object MockDataRepository {
             longitude = 120.24,
             openingHours = "08:00-17:00",
             phone = "0510-87654321",
-            website = "http://www.ytz.com.cn",
+            website = listOf("http://www.ytz.com.cn"),
             ticketInfo = "成人票105元，学生票52元",
             facilities = listOf("停车场", "游客中心", "餐厅", "商店"),
             reviews = mutableListOf(),
@@ -80,7 +80,7 @@ object MockDataRepository {
             longitude = 120.08,
             openingHours = "07:30-17:30",
             phone = "0510-76543210",
-            website = "http://www.lingshan.com",
+            website = listOf("http://www.lingshan.com"),
             ticketInfo = "成人票210元，学生票105元",
             facilities = listOf("停车场", "游客中心", "素食餐厅", "纪念品商店"),
             reviews = mutableListOf(),
@@ -101,7 +101,7 @@ object MockDataRepository {
             longitude = 120.317,
             openingHours = "09:00-17:00 (周一闭馆)",
             phone = "0510-85727500",
-            website = "http://www.wxmuseum.com",
+            website = listOf("http://www.wxmuseum.com"),
             ticketInfo = "免费，需预约",
             facilities = listOf("储物柜", "讲解服务", "休息区"),
             reviews = mutableListOf(),
@@ -122,7 +122,7 @@ object MockDataRepository {
             longitude = 120.278,
             openingHours = "08:00-17:00",
             phone = "0510-85707117",
-            website = "http://www.xihui.com",
+            website = listOf("http://www.xihui.com"),
             ticketInfo = "包含在锡惠公园联票内",
             facilities = listOf("茶室", "休息区", "讲解服务"),
             reviews = mutableListOf(),
@@ -315,7 +315,7 @@ object MockDataRepository {
             val attractionIndex = currentAttractions.indexOfFirst { it.id == attractionId }
             if (attractionIndex != -1) {
                 val oldAttraction = currentAttractions[attractionIndex]
-                val updatedReviews = oldAttraction.reviews.toMutableList().apply { add(0, newReview) }
+                val updatedReviews = (oldAttraction.reviews ?: mutableListOf()).toMutableList().apply { add(0, newReview) }
                 currentAttractions[attractionIndex] = oldAttraction.copy(reviews = updatedReviews)
                 _mockAttractions.value = currentAttractions
                 Logger.i("添加评价成功: $attractionId")
@@ -354,10 +354,12 @@ object MockDataRepository {
                 weather = WeatherInfo("22°C", "晴", "65%", "3级", "良", "适合出游"),
                 banners = listOf(Banner("1", "太湖风光", "https://images.unsplash.com/photo-1596393354350-d79593e8956e?q=80&w=2070")),
                 categories = listOf(
-                    Category("风景名胜", "🏞️"),
-                    Category("寺庙古迹", "⛩️"),
-                    Category("古典园林", "🌳"),
-                    Category("博物馆", "🏛️")
+                    Category(id = "美食", name = "美食", icon = "food_icon"),
+                    Category(id = "景点", name = "景点", icon = "attraction_icon"),
+                    Category(id = "酒店", name = "酒店", icon = "hotel_icon"),
+                    Category(id = "购物", name = "购物", icon = "shopping_icon"),
+                    Category(id = "娱乐", name = "娱乐", icon = "entertainment_icon"),
+                    Category(id = "交通", name = "交通", icon = "transport_icon")
                 ),
                 hotAttractions = _mockAttractions.value.filter { it.isHot },
                 activities = emptyList()

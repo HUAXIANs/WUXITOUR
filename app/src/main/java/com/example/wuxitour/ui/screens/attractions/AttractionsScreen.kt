@@ -138,7 +138,7 @@ fun AttractionCard(
             ) {
                 AsyncImage(
                     model = attraction.imageUrl,
-                    contentDescription = attraction.name,
+                    contentDescription = attraction.name ?: "景点图片",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -182,12 +182,12 @@ fun AttractionCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = attraction.name,
+                    text = attraction.name ?: "名称未知",
                     style = MaterialTheme.typography.titleLarge
                 )
                 
                 Text(
-                    text = attraction.description,
+                    text = attraction.description ?: "无简介",
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -210,21 +210,21 @@ fun AttractionCard(
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = String.format("%.1f", attraction.rating),
+                            text = String.format("%.1f", attraction.rating ?: 0f),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                     
                     // 价格
                     Text(
-                        text = attraction.price,
+                        text = attraction.price ?: "价格不详",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 
                 // 标签
-                if (attraction.tags.isNotEmpty()) {
+                if (attraction.tags?.isNotEmpty() == true) {
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)

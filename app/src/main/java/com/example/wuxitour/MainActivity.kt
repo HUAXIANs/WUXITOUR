@@ -24,6 +24,11 @@ import com.example.wuxitour.ui.screens.trip.TripScreen
 import com.example.wuxitour.ui.theme.WuxiTourTheme
 import com.example.wuxitour.ui.screens.trip_detail.TripDetailScreen
 import com.example.wuxitour.ui.screens.guide.GuideScreen
+import androidx.compose.runtime.remember
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.wuxitour.data.repository.AttractionRepository
+import com.example.wuxitour.data.repository.UserRepository
+import com.example.wuxitour.ui.screens.home.HomeViewModelFactory
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -44,13 +49,20 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifier) {
+    val attractionRepository = remember { AttractionRepository() }
+    val userRepository = remember { UserRepository() }
+    val homeViewModelFactory = remember { HomeViewModelFactory(attractionRepository, userRepository) }
+
     NavHost(
         navController = navController,
         startDestination = BottomNavItem.Home.route,
         modifier = modifier
     ) {
         composable(BottomNavItem.Home.route) {
-            HomeScreen(onAttractionClick = { id -> navController.navigate("attraction_detail/$id") })
+            HomeScreen(
+                viewModel = viewModel(factory = homeViewModelFactory),
+                onAttractionClick = { id -> navController.navigate("attraction_detail/$id") }
+            )
         }
         composable(BottomNavItem.Attractions.route) {
             AttractionsScreen(onAttractionClick = { id -> navController.navigate("attraction_detail/$id") })

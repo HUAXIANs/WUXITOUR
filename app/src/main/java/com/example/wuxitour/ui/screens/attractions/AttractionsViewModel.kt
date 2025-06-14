@@ -33,9 +33,9 @@ class AttractionsViewModel(
             state.allAttractions.filter { attraction ->
                 val matchesCategory = state.selectedCategory == null || attraction.category == state.selectedCategory
                 val matchesQuery = state.searchQuery.isBlank() ||
-                        attraction.name.contains(state.searchQuery, ignoreCase = true) ||
-                        attraction.description.contains(state.searchQuery, ignoreCase = true) ||
-                        attraction.tags.any { it.contains(state.searchQuery, ignoreCase = true) }
+                        (attraction.name?.contains(state.searchQuery, ignoreCase = true) == true) ||
+                        (attraction.description?.contains(state.searchQuery, ignoreCase = true) == true) ||
+                        (attraction.tags?.any { it.contains(state.searchQuery, ignoreCase = true) } == true)
                 matchesCategory && matchesQuery
             }
         }.stateIn(

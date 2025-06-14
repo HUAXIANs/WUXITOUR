@@ -31,19 +31,19 @@ data class Attraction(
     val id: String,
     
     @SerializedName("name")
-    val name: String,
+    val name: String?,
     
     @SerializedName("description")
-    val description: String,
+    val description: String?,
     
     @SerializedName("detailedDescription")
-    val detailedDescription: String,
+    val detailedDescription: String?,
     
     @SerializedName("imageUrl")
-    val imageUrl: String,
+    val imageUrl: String?,
     
     @SerializedName("address")
-    val address: String,
+    val address: String?,
     
     @SerializedName("latitude")
     val latitude: Double,
@@ -52,49 +52,53 @@ data class Attraction(
     val longitude: Double,
     
     @SerializedName("openingHours")
-    val openingHours: String,
+    val openingHours: String?,
     
     @SerializedName("phone")
-    val phone: String,
+    val phone: String?,
     
     @SerializedName("website")
-    val website: String,
+    val website: Any?,
     
     @SerializedName("ticketInfo")
-    val ticketInfo: String,
+    val ticketInfo: String?,
     
     @SerializedName("price")
-    val price: String,
+    val price: String?,
     
     @SerializedName("rating")
-    val rating: Float,
+    val rating: Float?,
     
     @SerializedName("category")
     val category: AttractionCategory,
     
     @SerializedName("tags")
-    val tags: List<String>,
+    val tags: List<String>?,
     
     @SerializedName("facilities")
-    val facilities: List<String>,
+    val facilities: List<String>?,
     
     @SerializedName("reviews")
-    val reviews: MutableList<Review>,
+    val reviews: MutableList<Review>?,
     
     @SerializedName("isHot")
     val isHot: Boolean,
 
     val isFavorite: Boolean = false
 ) {
+    fun getFirstWebsiteUrl(): String? {
+        return when (website) {
+            is String -> if (website.isNotEmpty()) website else null
+            is List<*> -> website.firstOrNull()?.toString()
+            else -> null
+        }
+    }
+
     init {
         require(id.isNotBlank()) { "景点ID不能为空" }
-        require(name.isNotBlank()) { "景点名称不能为空" }
-        require(description.isNotBlank()) { "景点简介不能为空" }
-        require(imageUrl.isNotBlank()) { "景点图片URL不能为空" }
-        require(address.isNotBlank()) { "景点地址不能为空" }
         require(latitude in -90.0..90.0) { "纬度必须在-90到90之间" }
         require(longitude in -180.0..180.0) { "经度必须在-180到180之间" }
-        require(rating in 0f..5f) { "评分必须在0到5之间" }
+        require(rating ?: 0f in 0f..5f) { "评分必须在0到5之间" }
     }
 
     /**
@@ -111,11 +115,11 @@ data class Attraction(
      */
     fun getBasicInfo(): String {
         return """
-            名称: $name
-            地址: $address
-            开放时间: $openingHours
-            门票: $price
-            评分: $rating
+            名称: ${name ?: "未知"}
+            地址: ${address ?: "不详"}
+            开放时间: ${openingHours ?: "未知"}
+            门票: ${price ?: "未知"}
+            评分: ${rating ?: "未知"}
         """.trimIndent()
     }
 
@@ -124,7 +128,7 @@ data class Attraction(
      * @param review 评价对象
      */
     fun addReview(review: Review) {
-        reviews.add(0, review) // 新评价放在最前面
+        reviews?.add(0, review) // 新评价放在最前面
     }
 
     /**
@@ -132,8 +136,8 @@ data class Attraction(
      * @return 平均评分
      */
     fun getAverageRating(): Float {
-        return if (reviews.isEmpty()) {
-            rating
+        return if (reviews.isNullOrEmpty()) {
+            rating ?: 0f
         } else {
             reviews.map { it.rating }.average().toFloat()
         }
@@ -144,13 +148,13 @@ data class Attraction(
      * @return 是否开放
      */
     fun isOpen(): Boolean {
-        val currentTime = Calendar.getInstance().time
-        val currentHour = currentTime.hours
-        val currentMinute = currentTime.minutes
+        val calendar = Calendar.getInstance() // Use Calendar instance
+        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+        val currentMinute = calendar.get(Calendar.MINUTE)
         
         return try {
-            val (openHour, openMinute) = openingHours.split("-")[0].split(":").map { it.toInt() }
-            val (closeHour, closeMinute) = openingHours.split("-")[1].split(":").map { it.toInt() }
+            val (openHour, openMinute) = openingHours?.split("-")?.get(0)?.split(":")?.map { it.toInt() } ?: listOf(0, 0)
+            val (closeHour, closeMinute) = openingHours?.split("-")?.get(1)?.split(":")?.map { it.toInt() } ?: listOf(0, 0)
             
             val currentTimeInMinutes = currentHour * 60 + currentMinute
             val openTimeInMinutes = openHour * 60 + openMinute

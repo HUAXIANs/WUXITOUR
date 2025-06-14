@@ -32,17 +32,19 @@ import kotlinx.coroutines.launch
 import com.example.wuxitour.data.repository.AttractionRepository
 import com.example.wuxitour.data.repository.TripRepository
 import com.example.wuxitour.data.repository.UserRepository
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 class AttractionDetailViewModelFactory(
     private val attractionRepository: AttractionRepository,
     private val tripRepository: TripRepository,
     private val userRepository: UserRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val attractionId: String
 ) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AttractionDetailViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return AttractionDetailViewModel(attractionRepository, tripRepository, userRepository, savedStateHandle) as T
+            return AttractionDetailViewModel(attractionRepository, tripRepository, userRepository, attractionId) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
@@ -54,20 +56,25 @@ fun AttractionDetailScreen(
     attractionId: String,
     onBackClick: () -> Unit
 ) {
+    if (attractionId.isBlank()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("景点ID不能为空")
+        }
+        return
+    }
+
     val attractionRepository = remember { AttractionRepository() }
     val tripRepository = remember { TripRepository(attractionRepository) }
     val userRepository = remember { UserRepository() }
-    val viewModel: AttractionDetailViewModel = viewModel(factory = AttractionDetailViewModelFactory(attractionRepository, tripRepository, userRepository, SavedStateHandle()))
+    val viewModel: AttractionDetailViewModel = viewModel(factory = AttractionDetailViewModelFactory(attractionRepository, tripRepository, userRepository, attractionId))
 
     LaunchedEffect(attractionId) {
         viewModel.loadAttraction()
     }
 
     val uiState by viewModel.uiState.collectAsState()
-// 新增：创建 Snackbar 所需的状态和协程作用域
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    // 新增：使用 LaunchedEffect 来监听来自 ViewModel 的消息
     LaunchedEffect(Unit) {
         viewModel.userMessage.collect { message ->
             scope.launch {
@@ -103,7 +110,23 @@ fun AttractionDetailScreen(
             if (uiState.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (uiState.error != null) {
-                Text(text = "错误: ${uiState.error}", modifier = Modifier.align(Alignment.Center))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "错误: ${uiState.error}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { viewModel.loadAttraction() }) {
+                        Text("重试")
+                    }
+                }
             } else {
                 uiState.attraction?.let { attraction ->
                     Column {
@@ -140,14 +163,12 @@ fun AttractionDetailContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 基本信息
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(attraction.name, style = MaterialTheme.typography.headlineMedium)
-                Text(attraction.description, style = MaterialTheme.typography.bodyMedium)
+                Text(attraction.name ?: "名称未知", style = MaterialTheme.typography.headlineMedium)
+                Text(attraction.description ?: "无简介", style = MaterialTheme.typography.bodyMedium)
                 
-                // 标签
-                if (attraction.tags.isNotEmpty()) {
+                if (attraction.tags?.isNotEmpty() == true) {
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -169,28 +190,25 @@ fun AttractionDetailContent(
             }
         }
 
-        // 详细信息
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("详细信息", style = MaterialTheme.typography.titleLarge)
-                Text(attraction.detailedDescription, style = MaterialTheme.typography.bodyMedium)
+                Text(attraction.detailedDescription ?: "无详细介绍", style = MaterialTheme.typography.bodyMedium)
             }
         }
 
-        // 开放信息
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("开放信息", style = MaterialTheme.typography.titleLarge)
-                InfoRow("开放时间", attraction.openingHours)
-                InfoRow("门票信息", attraction.ticketInfo)
-                InfoRow("价格", attraction.price)
-                InfoRow("联系电话", attraction.phone)
-                InfoRow("官方网站", attraction.website)
+                InfoRow("开放时间", attraction.openingHours ?: "未知")
+                InfoRow("门票信息", attraction.ticketInfo ?: "无")
+                InfoRow("价格", attraction.price ?: "免费")
+                InfoRow("联系电话", attraction.phone ?: "无")
+                InfoRow("官方网站", attraction.getFirstWebsiteUrl() ?: "无")
             }
         }
 
-        // 设施信息
-        if (attraction.facilities.isNotEmpty()) {
+        if (attraction.facilities?.isNotEmpty() == true) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("设施服务", style = MaterialTheme.typography.titleLarge)
@@ -214,11 +232,6 @@ fun AttractionDetailContent(
                 }
             }
         }
-
-        // 评价部分
-        // TODO: Future: Re-implement review functionality if a dedicated ReviewRepository is added
-        // item {
-        //     ReviewSection(\n        //         reviews = attraction.reviews,\n        //         onSubmitReview = onSubmitReview\n        //     )\n        // }\n    }
     }
 }
 
@@ -239,91 +252,6 @@ private fun InfoRow(label: String, value: String) {
         )
     }
 }
-
-// TODO: Future: Re-implement review functionality if a dedicated ReviewRepository is added
-/*
-@Composable
-fun ReviewSection(
-    reviews: List<Review>,
-    onSubmitReview: (rating: Float, comment: String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Divider()
-        Text("发表您的看法", style = MaterialTheme.typography.titleLarge)
-        ReviewInput(onSubmit = onSubmitReview)
-
-        Spacer(Modifier.height(8.dp))
-
-        Text("全部评价 (${reviews.size})", style = MaterialTheme.typography.titleLarge)
-        if (reviews.isEmpty()) {
-            Text("暂无评价，快来抢占第一个沙发吧！")
-        } else {
-            reviews.forEach { review ->
-                ReviewItem(review = review)
-                Divider(modifier = Modifier.padding(top = 8.dp))
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ReviewInput(
-    onSubmit: (rating: Float, comment: String) -> Unit
-) {
-    var rating by remember { mutableStateOf(0f) }
-    var comment by remember { mutableStateOf("") }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("评分:", modifier = Modifier.width(50.dp))
-            StarRatingBar(rating = rating) { newRating -> rating = newRating }
-        }
-        OutlinedTextField(
-            value = comment,
-            onValueChange = { comment = it },
-            label = { Text("您的评论") },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 3
-        )
-        Button(onClick = { onSubmit(rating, comment) }) {
-            Text("提交评论")
-        }
-    }
-}
-
-@Composable
-fun StarRatingBar(rating: Float, onRatingChanged: (Float) -> Unit) {
-    Row {
-        for (i in 1..5) {
-            Icon(
-                imageVector = if (i <= rating) Icons.Filled.Star else Icons.Outlined.Star,
-                contentDescription = null,
-                tint = if (i <= rating) MaterialTheme.colorScheme.primary else Color.Gray,
-                modifier = Modifier
-                    .clickable { onRatingChanged(i.toFloat()) }
-                    .padding(4.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun ReviewItem(review: Review) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(review.userName, style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.width(8.dp))
-            StarRatingBar(rating = review.rating, onRatingChanged = { /* Read-only */ })
-        }
-        Text(review.comment, style = MaterialTheme.typography.bodyMedium)
-        Text(review.date, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-    }
-}
-*/
 
 @Composable
 fun AddToTripDialog(

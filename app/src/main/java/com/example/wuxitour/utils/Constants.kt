@@ -5,10 +5,11 @@ package com.example.wuxitour.utils
  */
 object Constants {
     // 高德地图配置
-    const val AMAP_KEY = "4226dac17e3b2da8a393f63fada6469e"
+    const val AMAP_KEY = "b58ae385c94d250003fc87fe4ec6d79d"
+    const val AMAP_WEB_SERVICE_KEY = "bcff2b116346619ca46de0837e9c7b68"
     
     // 网络配置
-    const val BASE_URL = "https://restapi.amap.com/v3/" // 高德地图Web API地址
+    const val BASE_URL = "https://restapi.amap.com/" // 高德地图Web API地址
     const val NETWORK_TIMEOUT = 30L
     const val NETWORK_RETRY_COUNT = 3
     const val NETWORK_RETRY_DELAY = 1000L // 1秒

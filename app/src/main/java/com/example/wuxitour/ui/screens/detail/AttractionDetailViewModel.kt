@@ -39,7 +39,7 @@ class AttractionDetailViewModel(
     private val attractionRepository: AttractionRepository,
     private val tripRepository: TripRepository,
     private val userRepository: UserRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val attractionId: String
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AttractionDetailUiState())
     val uiState: StateFlow<AttractionDetailUiState> = _uiState.asStateFlow()
@@ -48,17 +48,23 @@ class AttractionDetailViewModel(
     val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
 
     init {
-        loadAttraction()
-        loadUserTrips()
+        if (attractionId.isBlank()) {
+            _uiState.update { it.copy(error = "景点ID不能为空") }
+        } else {
+            loadAttraction()
+            loadUserTrips()
+        }
     }
 
     fun loadAttraction() {
+        if (attractionId.isBlank()) {
+            _uiState.update { it.copy(error = "景点ID不能为空") }
+            return
+        }
+        
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                val attractionId = savedStateHandle.get<String>("attractionId")
-                    ?: throw IllegalArgumentException("Attraction ID is required")
-
                 attractionRepository.getAttractionDetail(attractionId).collect { result ->
                     when (result) {
                         is NetworkResult.Loading<Attraction> -> _uiState.update { it.copy(isLoading = true) }
