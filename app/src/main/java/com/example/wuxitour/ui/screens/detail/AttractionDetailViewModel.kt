@@ -72,23 +72,23 @@ class AttractionDetailViewModel @Inject constructor(
             try {
                 attractionRepository.getAttractionDetail(attractionId).collect { result ->
                     when (result) {
-                        is NetworkResult.Loading<Attraction> -> _uiState.update { it.copy(isLoading = true) }
-                        is NetworkResult.Success<Attraction> -> {
+                        is NetworkResult.Loading -> _uiState.update { it.copy(isLoading = true) }
+                        is NetworkResult.Success -> {
                             val attraction = result.data
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
                                     attraction = attraction,
-                                    isFavorited = attraction.isFavorite,
+                                    isFavorited = attraction?.isFavorite ?: false,
                                     error = null
                                 )
                             }
                         }
-                        is NetworkResult.Error<Attraction> -> {
+                        is NetworkResult.Error -> {
                             _uiState.update { it.copy(isLoading = false, error = result.message) }
                             Logger.e("加载景点详情失败: ${result.message}")
                         }
-                        is NetworkResult.Empty<Attraction> -> {
+                        is NetworkResult.Empty -> {
                             _uiState.update { it.copy(isLoading = false, error = result.message) }
                             Logger.d("景点详情为空: ${result.message}")
                         }
@@ -106,14 +106,14 @@ class AttractionDetailViewModel @Inject constructor(
             try {
                 userRepository.getUserTrips().collect { result ->
                     when (result) {
-                        is NetworkResult.Success<List<Trip>> -> {
+                        is NetworkResult.Success -> {
                             _uiState.update { it.copy(userTrips = result.data) }
                         }
-                        is NetworkResult.Error<List<Trip>> -> {
+                        is NetworkResult.Error -> {
                             Logger.e("加载用户行程失败: ${result.message}")
                         }
-                        is NetworkResult.Loading<List<Trip>> -> { /* Handle loading state if needed */ }
-                        is NetworkResult.Empty<List<Trip>> -> {
+                        is NetworkResult.Loading -> { /* Handle loading state if needed */ }
+                        is NetworkResult.Empty -> {
                             Logger.d("用户行程为空: ${result.message}")
                         }
                     }
@@ -144,7 +144,7 @@ class AttractionDetailViewModel @Inject constructor(
 
                 actionFlow.collect { result ->
                     when (result) {
-                        is NetworkResult.Success<Boolean> -> {
+                        is NetworkResult.Success -> {
                             _uiState.update { uiState ->
                                 uiState.copy(
                                     attraction = uiState.attraction?.copy(isFavorite = newFavoriteStatus),
@@ -153,12 +153,12 @@ class AttractionDetailViewModel @Inject constructor(
                             }
                             _userMessage.emit(if (newFavoriteStatus) "已收藏" else "已取消收藏")
                         }
-                        is NetworkResult.Error<Boolean> -> {
+                        is NetworkResult.Error -> {
                             _userMessage.emit(result.message)
                             Logger.e("切换收藏状态失败: ${result.message}")
                         }
-                        is NetworkResult.Loading<Boolean> -> { /* Handle loading state if needed */ }
-                        is NetworkResult.Empty<Boolean> -> {
+                        is NetworkResult.Loading -> { /* Handle loading state if needed */ }
+                        is NetworkResult.Empty -> {
                             _userMessage.emit(result.message)
                             Logger.d("收藏操作返回空: ${result.message}")
                         }
@@ -180,21 +180,21 @@ class AttractionDetailViewModel @Inject constructor(
                 try {
                     tripRepository.addAttractionToTrip(tripId, attractionId).collect { result ->
                         when (result) {
-                            is NetworkResult.Success<Boolean> -> {
+                            is NetworkResult.Success -> {
                                 val tripResult = tripRepository.getTripDetail(tripId).first()
-                                if (tripResult is NetworkResult.Success<Trip>) {
+                                if (tripResult is NetworkResult.Success) {
                                     _userMessage.emit("已成功添加到行程: ${tripResult.data.name}")
                                 } else {
                                     _userMessage.emit("已成功添加到行程")
                                 }
                                 showAddToTripDialog(false)
                             }
-                            is NetworkResult.Error<Boolean> -> {
+                            is NetworkResult.Error -> {
                                 _userMessage.emit(result.message)
                                 Logger.e("添加景点到行程失败: ${result.message}")
                             }
-                            is NetworkResult.Loading<Boolean> -> { /* Handle loading state if needed */ }
-                            is NetworkResult.Empty<Boolean> -> {
+                            is NetworkResult.Loading -> { /* Handle loading state if needed */ }
+                            is NetworkResult.Empty -> {
                                 _userMessage.emit(result.message)
                                 Logger.d("添加景点到行程返回空: ${result.message}")
                             }

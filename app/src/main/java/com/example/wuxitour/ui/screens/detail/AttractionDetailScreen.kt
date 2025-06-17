@@ -196,7 +196,7 @@ fun AttractionDetailContent(
         }
 
         item {
-            GoogleMapSection(latitude = attraction.location?.lat ?: 0.0, longitude = attraction.location?.lng ?: 0.0)
+            GoogleMapSection(latitude = attraction.location?.latitude ?: 0.0, longitude = attraction.location?.longitude ?: 0.0)
         }
 
         item {

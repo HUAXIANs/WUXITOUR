@@ -119,10 +119,10 @@ class TripDetailViewModel @Inject constructor(
 
                     for (nextAttraction in remainingAttractions) {
                         val distance = calculateDistance(
-                            currentAttraction.attraction.location?.lat ?: 0.0,
-                            currentAttraction.attraction.location?.lng ?: 0.0,
-                            nextAttraction.attraction.location?.lat ?: 0.0,
-                            nextAttraction.attraction.location?.lng ?: 0.0
+                            currentAttraction.attraction.location?.latitude ?: 0.0,
+                            currentAttraction.attraction.location?.longitude ?: 0.0,
+                            nextAttraction.attraction.location?.latitude ?: 0.0,
+                            nextAttraction.attraction.location?.longitude ?: 0.0
                         )
                         if (distance < minDistance) {
                             minDistance = distance

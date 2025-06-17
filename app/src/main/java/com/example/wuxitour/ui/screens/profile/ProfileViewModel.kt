@@ -45,7 +45,7 @@ class ProfileViewModel @Inject constructor(
             try {
                 userRepository.getCurrentUser().collect { result ->
                     when (result) {
-                        is NetworkResult.Success<User> -> {
+                        is NetworkResult.Success -> {
                             _uiState.update {
                                 it.copy(
                                     isLoggedIn = true,
@@ -56,7 +56,7 @@ class ProfileViewModel @Inject constructor(
                             loadFavorites()
                             loadFootprints()
                         }
-                        is NetworkResult.Error<User> -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isLoggedIn = false,
@@ -65,10 +65,10 @@ class ProfileViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is NetworkResult.Loading<User> -> {
+                        is NetworkResult.Loading -> {
                             _uiState.update { it.copy(isLoading = true) }
                         }
-                        is NetworkResult.Empty<User> -> {
+                        is NetworkResult.Empty -> {
                             _uiState.update { it.copy(isLoading = false, isLoggedIn = false, user = null, error = "没有用户数据") }
                         }
                     }
@@ -93,10 +93,10 @@ class ProfileViewModel @Inject constructor(
             try {
                 userRepository.login(username, password).collect { result ->
                     when (result) {
-                        is NetworkResult.Loading<User> -> {
+                        is NetworkResult.Loading -> {
                             _uiState.update { it.copy(isLoading = true) }
                         }
-                        is NetworkResult.Success<User> -> {
+                        is NetworkResult.Success -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -109,7 +109,7 @@ class ProfileViewModel @Inject constructor(
                             loadFavorites()
                             loadFootprints()
                         }
-                        is NetworkResult.Error<User> -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -118,7 +118,7 @@ class ProfileViewModel @Inject constructor(
                             }
                             Logger.e("登录失败: ${result.message}")
                         }
-                        is NetworkResult.Empty<User> -> {
+                        is NetworkResult.Empty -> {
                             _uiState.update { it.copy(isLoading = false, error = "登录成功，但无用户数据") }
                         }
                     }
@@ -140,17 +140,17 @@ class ProfileViewModel @Inject constructor(
             try {
                 userRepository.logout().collect { result ->
                     when (result) {
-                        is NetworkResult.Success<Boolean> -> {
+                        is NetworkResult.Success -> {
                             _uiState.value = ProfileUiState()
                         }
-                        is NetworkResult.Error<Boolean> -> {
+                        is NetworkResult.Error -> {
                             Logger.e("退出登录失败: ${result.message}")
                             _uiState.update { it.copy(error = result.message) }
                         }
-                        is NetworkResult.Loading<Boolean> -> {
+                        is NetworkResult.Loading -> {
                             _uiState.update { it.copy(isLoading = true) }
                         }
-                        is NetworkResult.Empty<Boolean> -> {
+                        is NetworkResult.Empty -> {
                             _uiState.value = ProfileUiState(error = "退出登录成功，但无返回数据")
                         }
                     }
@@ -171,13 +171,13 @@ class ProfileViewModel @Inject constructor(
             try {
                 userRepository.register(email, password, username).collect { result ->
                     when (result) {
-                        is NetworkResult.Loading<User> -> {
+                        is NetworkResult.Loading -> {
                             _uiState.update { it.copy(isLoading = true) }
                         }
-                        is NetworkResult.Success<User> -> {
+                        is NetworkResult.Success -> {
                             login(username, password)
                         }
-                        is NetworkResult.Error<User> -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -186,7 +186,7 @@ class ProfileViewModel @Inject constructor(
                             }
                             Logger.e("注册失败: ${result.message}")
                         }
-                        is NetworkResult.Empty<User> -> {
+                        is NetworkResult.Empty -> {
                             _uiState.update { it.copy(isLoading = false, error = "注册成功，但无用户数据") }
                         }
                     }
@@ -208,17 +208,17 @@ class ProfileViewModel @Inject constructor(
         for (id in ids) {
             attractionRepository.getAttractionDetail(id).firstOrNull()?.let { result ->
                 when (result) {
-                    is NetworkResult.Success<Attraction> -> {
-                        result.data.let { attractions.add(it) }
+                    is NetworkResult.Success -> {
+                        (result.data as? Attraction)?.let { attractions.add(it) }
                     }
-                    is NetworkResult.Error<Attraction> -> {
+                    is NetworkResult.Error -> {
                         Logger.e("获取收藏景点详情失败: ${result.message}")
                         _uiState.update { it.copy(error = result.message) }
                     }
-                    is NetworkResult.Loading<Attraction> -> {
+                    is NetworkResult.Loading -> {
                         Logger.d("正在加载景点详情: $id")
                     }
-                    is NetworkResult.Empty<Attraction> -> {
+                    is NetworkResult.Empty -> {
                         Logger.d("未找到景点详情: $id")
                     }
                 }
@@ -232,21 +232,21 @@ class ProfileViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             userRepository.getFavoriteAttractions().collect { result ->
                 when (result) {
-                    is NetworkResult.Loading<List<String>> -> {
+                    is NetworkResult.Loading -> {
                         _uiState.update { it.copy(isLoading = true) }
                     }
-                    is NetworkResult.Success<List<String>> -> {
-                        val favoriteAttractionIds = result.data
+                    is NetworkResult.Success -> {
+                        val favoriteAttractionIds = result.data as? List<String> ?: emptyList()
                         val favoriteAttractions = fetchAttractionsFromIds(favoriteAttractionIds)
                         _uiState.update {
                             it.copy(isLoading = false, favorites = favoriteAttractions, error = null)
                         }
                     }
-                    is NetworkResult.Error<List<String>> -> {
+                    is NetworkResult.Error -> {
                         Logger.e("加载收藏失败: ${result.message}")
                         _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
-                    is NetworkResult.Empty<List<String>> -> {
+                    is NetworkResult.Empty -> {
                         Logger.e("加载收藏：数据为空 - ${result.message}")
                         _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
@@ -260,13 +260,13 @@ class ProfileViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             userRepository.addFavoriteAttraction(attractionId).collect {
                 when (it) {
-                    is NetworkResult.Loading<Boolean> -> _uiState.update { state -> state.copy(isLoading = true) }
-                    is NetworkResult.Success<Boolean> -> {
-                        if (it.data) loadFavorites()
+                    is NetworkResult.Loading -> _uiState.update { state -> state.copy(isLoading = true) }
+                    is NetworkResult.Success -> {
+                        if (it.data as? Boolean == true) loadFavorites()
                         _uiState.update { state -> state.copy(isLoading = false, error = null) }
                     }
-                    is NetworkResult.Error<Boolean> -> _uiState.update { state -> state.copy(isLoading = false, error = it.message) }
-                    is NetworkResult.Empty<Boolean> -> _uiState.update { state -> state.copy(isLoading = false, error = "添加收藏失败：返回数据为空") }
+                    is NetworkResult.Error -> _uiState.update { state -> state.copy(isLoading = false, error = it.message) }
+                    is NetworkResult.Empty -> _uiState.update { state -> state.copy(isLoading = false, error = "添加收藏失败：返回数据为空") }
                 }
             }
         }
@@ -277,13 +277,13 @@ class ProfileViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             userRepository.removeFavoriteAttraction(attractionId).collect {
                 when (it) {
-                    is NetworkResult.Loading<Boolean> -> _uiState.update { state -> state.copy(isLoading = true) }
-                    is NetworkResult.Success<Boolean> -> {
-                        if (it.data) loadFavorites()
+                    is NetworkResult.Loading -> _uiState.update { state -> state.copy(isLoading = true) }
+                    is NetworkResult.Success -> {
+                        if (it.data as? Boolean == true) loadFavorites()
                         _uiState.update { state -> state.copy(isLoading = false, error = null) }
                     }
-                    is NetworkResult.Error<Boolean> -> _uiState.update { state -> state.copy(isLoading = false, error = it.message) }
-                    is NetworkResult.Empty<Boolean> -> _uiState.update { state -> state.copy(isLoading = false, error = "移除收藏失败：返回数据为空") }
+                    is NetworkResult.Error -> _uiState.update { state -> state.copy(isLoading = false, error = it.message) }
+                    is NetworkResult.Empty -> _uiState.update { state -> state.copy(isLoading = false, error = "移除收藏失败：返回数据为空") }
                 }
             }
         }
@@ -342,19 +342,19 @@ class ProfileViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             userRepository.getUserFootprints().collect { result ->
                 when (result) {
-                    is NetworkResult.Loading<List<UserFootprint>> -> {
+                    is NetworkResult.Loading -> {
                         _uiState.update { it.copy(isLoading = true) }
                     }
-                    is NetworkResult.Success<List<UserFootprint>> -> {
+                    is NetworkResult.Success -> {
                         _uiState.update {
-                            it.copy(isLoading = false, footprints = result.data, error = null)
+                            it.copy(isLoading = false, footprints = result.data as? List<UserFootprint> ?: emptyList(), error = null)
                         }
                     }
-                    is NetworkResult.Error<List<UserFootprint>> -> {
+                    is NetworkResult.Error -> {
                         Logger.e("加载足迹失败: ${result.message}")
                         _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
-                    is NetworkResult.Empty<List<UserFootprint>> -> {
+                    is NetworkResult.Empty -> {
                         Logger.e("加载足迹：数据为空 - ${result.message}")
                         _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
@@ -368,18 +368,18 @@ class ProfileViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             userRepository.addUserFootprint(attractionId).collect {
                 when (it) {
-                    is NetworkResult.Loading<Boolean> -> {
+                    is NetworkResult.Loading -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = true) }
                     }
-                    is NetworkResult.Success<Boolean> -> {
+                    is NetworkResult.Success -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = null) }
                         loadFootprints()
                     }
-                    is NetworkResult.Error<Boolean> -> {
+                    is NetworkResult.Error -> {
                         Logger.e("添加足迹失败: ${it.message}")
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
                     }
-                    is NetworkResult.Empty<Boolean> -> {
+                    is NetworkResult.Empty -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
                         Logger.d("添加足迹：数据为空 - ${it.message}")
                     }
@@ -393,18 +393,18 @@ class ProfileViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             userRepository.removeUserFootprint(attractionId).collect {
                 when (it) {
-                    is NetworkResult.Loading<Boolean> -> {
+                    is NetworkResult.Loading -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = true) }
                     }
-                    is NetworkResult.Success<Boolean> -> {
+                    is NetworkResult.Success -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = null) }
                         loadFootprints()
                     }
-                    is NetworkResult.Error<Boolean> -> {
+                    is NetworkResult.Error -> {
                         Logger.e("移除足迹失败: ${it.message}")
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
                     }
-                    is NetworkResult.Empty<Boolean> -> {
+                    is NetworkResult.Empty -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
                         Logger.d("移除足迹：数据为空 - ${it.message}")
                     }

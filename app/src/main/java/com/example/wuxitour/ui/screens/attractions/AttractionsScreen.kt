@@ -175,7 +175,7 @@ fun AttractionCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RatingBar(rating = attraction.rating.toFloat())
-                PriceTag(price = attraction.cost.toFloat())
+                PriceTag(price = attraction.cost.toFloatOrNull() ?: 0f)
             }
 
             Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
