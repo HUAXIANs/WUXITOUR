@@ -95,7 +95,7 @@ fun HomeScreen(
                         }
                         items(
                             count = homeData.hotAttractions.size,
-                            key = { index -> homeData.hotAttractions[index].id }
+                            key = { index -> homeData.hotAttractions[index].id ?: index.toString() }
                         ) { index ->
                             val attraction = homeData.hotAttractions[index]
                             Box(
@@ -105,7 +105,7 @@ fun HomeScreen(
                             ) {
                                 AttractionCard(
                                     attraction = attraction,
-                                    onClick = { onAttractionClick(attraction.id) },
+                                    onClick = { onAttractionClick(attraction.id ?: "") },
                                     onFavoriteClick = { viewModel.onFavoriteClick(attraction) }
                                 )
                             }

@@ -34,25 +34,12 @@ import com.example.wuxitour.data.repository.TripRepository
 import com.example.wuxitour.data.repository.UserRepository
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-
-class AttractionDetailViewModelFactory(
-    private val attractionRepository: AttractionRepository,
-    private val tripRepository: TripRepository,
-    private val userRepository: UserRepository,
-    private val attractionId: String
-) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(AttractionDetailViewModel::class.java)) {
-            return AttractionDetailViewModel(attractionRepository, tripRepository, userRepository, attractionId) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
+import com.example.wuxitour.ui.components.RatingBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttractionDetailScreen(
+    viewModel: AttractionDetailViewModel,
     attractionId: String,
     onBackClick: () -> Unit
 ) {
@@ -62,11 +49,6 @@ fun AttractionDetailScreen(
         }
         return
     }
-
-    val attractionRepository = remember { AttractionRepository() }
-    val tripRepository = remember { TripRepository(attractionRepository) }
-    val userRepository = remember { UserRepository() }
-    val viewModel: AttractionDetailViewModel = viewModel(factory = AttractionDetailViewModelFactory(attractionRepository, tripRepository, userRepository, attractionId))
 
     LaunchedEffect(attractionId) {
         viewModel.loadAttraction()
@@ -198,39 +180,27 @@ fun AttractionDetailContent(
         }
 
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("开放信息", style = MaterialTheme.typography.titleLarge)
-                InfoRow("开放时间", attraction.openingHours ?: "未知")
-                InfoRow("门票信息", attraction.ticketInfo ?: "无")
-                InfoRow("价格", attraction.price ?: "免费")
-                InfoRow("联系电话", attraction.phone ?: "无")
-                InfoRow("官方网站", attraction.getFirstWebsiteUrl() ?: "无")
+            ReviewSection(reviews = attraction.reviews ?: emptyList())
+        }
+
+        item {
+            val websiteUrl = attraction.website
+            if (!websiteUrl.isNullOrBlank()) {
+                Text(
+                    text = "官网: ${websiteUrl}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { /* TODO: 打开官网链接 */ }
+                )
             }
         }
 
-        if (attraction.facilities?.isNotEmpty() == true) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("设施服务", style = MaterialTheme.typography.titleLarge)
-                    Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        attraction.facilities.forEach { facility ->
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.tertiaryContainer
-                            ) {
-                                Text(
-                                    text = facility,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+        item {
+            GoogleMapSection(latitude = attraction.location?.lat ?: 0.0, longitude = attraction.location?.lng ?: 0.0)
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -279,6 +249,47 @@ fun AddToTripDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ReviewSection(reviews: List<Review>) {
+    Column {
+        Text("用户评价", style = MaterialTheme.typography.titleLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        if (reviews.isEmpty()) {
+            Text("暂无评价", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            reviews.forEach { review ->
+                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(review.userName, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            RatingBar(review.rating.toFloat())
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(review.comment)
+                        Text(review.date, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GoogleMapSection(latitude: Double, longitude: Double) {
+    Column {
+        Text("地图", style = MaterialTheme.typography.titleLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        if (latitude != 0.0 && longitude != 0.0) {
+            // Placeholder for Google Map. Actual implementation would involve Google Maps SDK.
+            Text("地图坐标: Lat $latitude, Lng $longitude", style = MaterialTheme.typography.bodyMedium)
+            // You would integrate GoogleMap composable here
+        } else {
+            Text("无法加载地图，缺少位置信息", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.wuxitour.data.model.Attraction
 import com.example.wuxitour.data.model.HomeData
 import com.example.wuxitour.data.repository.AttractionRepository
-import com.example.wuxitour.data.repository.MockDataRepository
 import com.example.wuxitour.data.common.NetworkResult
 import com.example.wuxitour.utils.Logger
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,8 +15,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.wuxitour.data.repository.UserRepository
 import kotlinx.coroutines.delay
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class HomeViewModel(
+@HiltViewModel
+class HomeViewModel @Inject constructor(
     private val attractionRepository: AttractionRepository,
     private val userRepository: UserRepository
 ) : ViewModel() {
@@ -36,7 +38,7 @@ class HomeViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 // 加载热门景点
-                attractionRepository.getAttractions("热门").collect { result ->
+                attractionRepository.getAttractions("景点").collect { result ->
                     when (result) {
                         is NetworkResult.Loading -> {
                             _uiState.update { it.copy(isLoading = true) }
@@ -46,11 +48,23 @@ class HomeViewModel(
                                 banners = emptyList(), // 暂时设置为空，待实现真实API
                                 categories = emptyList(), // 暂时设置为空，待实现真实API
                                 hotAttractions = result.data,
-                                weather = com.example.wuxitour.data.model.WeatherInfo("", "", "", "", "", ""), // 暂时设置为空，待实现真实API
+                                weather = com.example.wuxitour.data.model.WeatherInfo(
+                                    temperature = "25",
+                                    condition = "晴",
+                                    humidity = "60",
+                                    windSpeed = "东北风",
+                                    airQuality = "优",
+                                    suggestion = "天气晴朗，适合出行",
+                                    updateTime = "2024-03-21 12:00"
+                                ), // 使用默认值
                                 activities = emptyList() // 暂时设置为空，待实现真实API
                             )
                             _uiState.update { it.copy(isLoading = false, homeData = homeData, error = null) }
                             retryCount = 0 // 重置重试计数
+                        }
+                        is NetworkResult.Empty -> {
+                            _uiState.update { it.copy(isLoading = false, error = result.message) }
+                            Logger.i("加载热门景点：数据为空 - ${result.message}")
                         }
                         is NetworkResult.Error -> {
                             if (retryCount < maxRetries) {
@@ -79,23 +93,54 @@ class HomeViewModel(
 
     fun onFavoriteClick(attraction: Attraction) {
         viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            
             try {
-                // 这里应该调用收藏相关的API
-                // 暂时使用模拟数据
-                val updatedAttraction = attraction.copy(isFavorite = !attraction.isFavorite)
-                _uiState.update { currentState ->
-                    val updatedHotAttractions = currentState.homeData?.hotAttractions?.map {
-                        if (it.id == updatedAttraction.id) updatedAttraction else it
-                    } ?: emptyList()
-                    currentState.copy(
-                        homeData = currentState.homeData?.copy(
-                            hotAttractions = updatedHotAttractions
-                        )
-                    )
+                val newFavoriteStatus = !attraction.isFavorite
+                val attractionId = attraction.id ?: return@launch
+                val actionFlow = if (newFavoriteStatus) {
+                    userRepository.addFavoriteAttraction(attractionId)
+                } else {
+                    userRepository.removeFavoriteAttraction(attractionId)
+                }
+
+                actionFlow.collect {
+                    when (it) {
+                        is NetworkResult.Success -> {
+                            _uiState.update { currentState ->
+                                val updatedHotAttractions = currentState.homeData?.hotAttractions?.map {
+                                    if (it.id == attractionId) it.copy(isFavorite = newFavoriteStatus) else it
+                                } ?: emptyList()
+                                currentState.copy(
+                                    isLoading = false,
+                                    error = null,
+                                    homeData = currentState.homeData?.copy(
+                                        hotAttractions = updatedHotAttractions
+                                    )
+                                )
+                            }
+                            Logger.i("收藏操作成功: ${if (newFavoriteStatus) "已收藏" else "已取消收藏"}")
+                        }
+                        is NetworkResult.Error -> {
+                            Logger.e("收藏操作失败: ${it.message}")
+                            _uiState.update {
+                                currentState -> currentState.copy(
+                                    isLoading = false,
+                                    error = it.message
+                                )
+                            }
+                        }
+                        is NetworkResult.Loading -> {
+                            _uiState.update { currentState -> currentState.copy(isLoading = true) }
+                        }
+                        is NetworkResult.Empty -> {
+                            _uiState.update { currentState -> currentState.copy(isLoading = false, error = "收藏操作完成，但无返回数据") }
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Logger.e("收藏操作失败", e)
-                _uiState.update { it.copy(error = "收藏操作失败") }
+                _uiState.update { it.copy(isLoading = false, error = e.message ?: "收藏操作失败") }
             }
         }
     }

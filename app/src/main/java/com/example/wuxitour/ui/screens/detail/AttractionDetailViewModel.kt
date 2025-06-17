@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 data class AttractionDetailUiState(
     val isLoading: Boolean = true,
@@ -35,17 +37,20 @@ data class AttractionDetailUiState(
     val user: User? = null
 )
 
-class AttractionDetailViewModel(
+@HiltViewModel
+class AttractionDetailViewModel @Inject constructor(
     private val attractionRepository: AttractionRepository,
     private val tripRepository: TripRepository,
     private val userRepository: UserRepository,
-    private val attractionId: String
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AttractionDetailUiState())
     val uiState: StateFlow<AttractionDetailUiState> = _uiState.asStateFlow()
 
     private val _userMessage = MutableSharedFlow<String>()
     val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
+
+    private val attractionId: String = savedStateHandle["attractionId"] ?: ""
 
     init {
         if (attractionId.isBlank()) {
@@ -83,6 +88,10 @@ class AttractionDetailViewModel(
                             _uiState.update { it.copy(isLoading = false, error = result.message) }
                             Logger.e("加载景点详情失败: ${result.message}")
                         }
+                        is NetworkResult.Empty<Attraction> -> {
+                            _uiState.update { it.copy(isLoading = false, error = result.message) }
+                            Logger.d("景点详情为空: ${result.message}")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -104,6 +113,9 @@ class AttractionDetailViewModel(
                             Logger.e("加载用户行程失败: ${result.message}")
                         }
                         is NetworkResult.Loading<List<Trip>> -> { /* Handle loading state if needed */ }
+                        is NetworkResult.Empty<List<Trip>> -> {
+                            Logger.d("用户行程为空: ${result.message}")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -146,6 +158,10 @@ class AttractionDetailViewModel(
                             Logger.e("切换收藏状态失败: ${result.message}")
                         }
                         is NetworkResult.Loading<Boolean> -> { /* Handle loading state if needed */ }
+                        is NetworkResult.Empty<Boolean> -> {
+                            _userMessage.emit(result.message)
+                            Logger.d("收藏操作返回空: ${result.message}")
+                        }
                     }
                 }
             }
@@ -178,6 +194,10 @@ class AttractionDetailViewModel(
                                 Logger.e("添加景点到行程失败: ${result.message}")
                             }
                             is NetworkResult.Loading<Boolean> -> { /* Handle loading state if needed */ }
+                            is NetworkResult.Empty<Boolean> -> {
+                                _userMessage.emit(result.message)
+                                Logger.d("添加景点到行程返回空: ${result.message}")
+                            }
                         }
                     }
                 } catch (e: Exception) {

@@ -9,10 +9,14 @@ object Constants {
     const val AMAP_WEB_SERVICE_KEY = "bcff2b116346619ca46de0837e9c7b68"
     
     // 网络配置
-    const val BASE_URL = "https://restapi.amap.com/" // 高德地图Web API地址
+    const val AMAP_BASE_URL = "https://restapi.amap.com/" // 高德地图Web API地址
+    const val USER_BASE_URL = "https://api.wuxitour.com/" // 用户后端API地址
     const val NETWORK_TIMEOUT = 30L
     const val NETWORK_RETRY_COUNT = 3
     const val NETWORK_RETRY_DELAY = 1000L // 1秒
+    
+    // 用户配置
+    const val USER_TOKEN = "" // 用户登录后的token，由UserRepository管理
     
     // 缓存配置
     const val CACHE_SIZE = 10 * 1024 * 1024L // 10MB
@@ -28,6 +32,7 @@ object Constants {
     // 默认配置
     const val DEFAULT_PAGE_SIZE = 20
     const val DEFAULT_RADIUS = 5000 // meters
+    const val DEFAULT_CITY_CODE = "320200" // 无锡市编码
     
     // 错误信息
     const val ERROR_NETWORK = "网络连接失败，请检查您的网络设置"
@@ -39,6 +44,13 @@ object Constants {
     const val ERROR_REGISTER_FAILED = "注册失败，请稍后再试"
     const val ERROR_NOT_LOGGED_IN = "用户未登录"
     const val ERROR_LOADING_TRIPS = "行程加载失败，请稍后再试"
+    const val ERROR_LOADING_GUIDES = "语音导览加载失败，请稍后再试"
+    const val ERROR_LOADING_ATTRACTIONS = "景点加载失败，请稍后再试"
+    const val ERROR_LOADING_FAVORITES = "收藏加载失败，请稍后再试"
+    const val ERROR_LOADING_FOOTPRINTS = "足迹加载失败，请稍后再试"
+    const val ERROR_ADDING_FOOTPRINT = "添加用户足迹失败"
+    const val ERROR_REMOVING_FOOTPRINT = "移除用户足迹失败"
+    const val ERROR_UPDATING_PROFILE = "更新用户资料失败"
 }
 
 /**

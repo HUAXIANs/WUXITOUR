@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import com.example.wuxitour.ui.theme.spacing
 
 /**
  * 加载状态组件
@@ -31,7 +32,7 @@ fun LoadingIndicator(
     message: String = "加载中..."
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -39,10 +40,10 @@ fun LoadingIndicator(
             modifier = Modifier.size(48.dp),
             strokeWidth = 4.dp
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
         Text(
             text = message,
-            fontSize = 16.sp,
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -61,7 +62,7 @@ fun EmptyState(
     onAction: (() -> Unit)? = null
 ) {
     Column(
-        modifier = modifier.padding(32.dp),
+        modifier = modifier.fillMaxWidth().padding(MaterialTheme.spacing.large),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -72,26 +73,26 @@ fun EmptyState(
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         )
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
         
         Text(
             text = title,
-            fontSize = 18.sp,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         
         if (description != null) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
             Text(
                 text = description,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
             )
         }
         
         if (actionText != null && onAction != null) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
             Button(onClick = onAction) {
                 Text(actionText)
             }
@@ -111,7 +112,7 @@ fun ErrorState(
     onAction: () -> Unit
 ) {
     Column(
-        modifier = modifier.padding(32.dp),
+        modifier = modifier.fillMaxWidth().padding(MaterialTheme.spacing.large),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -122,24 +123,24 @@ fun ErrorState(
             tint = MaterialTheme.colorScheme.error
         )
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
         
         Text(
             text = title,
-            fontSize = 18.sp,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.error
         )
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
         
         Text(
             text = description,
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
         
         Button(onClick = onAction) {
             Text(actionText)
@@ -162,15 +163,15 @@ fun GradientCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val cardModifier = if (onClick != null) {
-        modifier.clip(RoundedCornerShape(12.dp))
+        modifier.clip(RoundedCornerShape(MaterialTheme.spacing.small))
     } else {
         modifier
     }
     
     Card(
         modifier = cardModifier,
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = MaterialTheme.spacing.extraSmall),
+        shape = RoundedCornerShape(MaterialTheme.spacing.small),
         onClick = onClick ?: {}
     ) {
         Box(
@@ -181,7 +182,7 @@ fun GradientCard(
                 )
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(MaterialTheme.spacing.medium),
                 content = content
             )
         }
@@ -248,121 +249,68 @@ fun PulseButton(
 fun SlideInContainer(
     visible: Boolean,
     modifier: Modifier = Modifier,
-    direction: AnimatedContentTransitionScope.SlideDirection = AnimatedContentTransitionScope.SlideDirection.Up,
-    content: @Composable () -> Unit
+    content: @Composable AnimatedVisibilityScope.() -> Unit
 ) {
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = slideInVertically(
-            initialOffsetY = { if (direction == AnimatedContentTransitionScope.SlideDirection.Up) it else -it },
-            animationSpec = tween(300)
-        ) + fadeIn(animationSpec = tween(300)),
-        exit = slideOutVertically(
-            targetOffsetY = { if (direction == AnimatedContentTransitionScope.SlideDirection.Up) it else -it },
-            animationSpec = tween(300)
-        ) + fadeOut(animationSpec = tween(300))
+        enter = slideInVertically(initialOffsetY = { it }) + expandVertically(expandFrom = Alignment.Top) + fadeIn(initialAlpha = 0.3f),
+        exit = slideOutVertically(targetOffsetY = { it }) + shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
     ) {
         content()
     }
 }
 
-/**
- * 评分星星组件
- */
 @Composable
-fun RatingStars(
-    rating: Float,
-    modifier: Modifier = Modifier,
-    maxRating: Int = 5,
-    starSize: Dp = 16.dp,
-    filledColor: Color = Color(0xFFFFD700),
-    emptyColor: Color = Color(0xFFE0E0E0)
-) {
-    Row(modifier = modifier) {
-        repeat(maxRating) { index ->
-            val starRating = (rating - index).coerceIn(0f, 1f)
-            
-            Box {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = null,
-                    modifier = Modifier.size(starSize),
-                    tint = emptyColor
-                )
-                
-                if (starRating > 0f) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(starSize)
-                            .clip(RoundedCornerShape(2.dp)),
-                        tint = filledColor
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * 标签组件
- */
-@Composable
-fun TagChip(
-    text: String,
-    modifier: Modifier = Modifier,
-    backgroundColor: Color = MaterialTheme.colorScheme.secondaryContainer,
-    textColor: Color = MaterialTheme.colorScheme.onSecondaryContainer
-) {
-    Surface(
-        modifier = modifier,
-        color = backgroundColor,
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            fontSize = 12.sp,
-            color = textColor,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-/**
- * 价格标签组件
- */
-@Composable
-fun PriceTag(
-    price: Double,
-    modifier: Modifier = Modifier,
-    currency: String = "¥",
-    originalPrice: Double? = null
-) {
+fun RatingBar(rating: Float, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "$currency${price.toInt()}",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        
-        if (originalPrice != null && originalPrice > price) {
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "$currency${originalPrice.toInt()}",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = androidx.compose.ui.text.TextStyle(
-                    textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                )
+        for (i in 1..5) {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                tint = if (i <= rating) MaterialTheme.colorScheme.primary else Color.Gray,
+                modifier = Modifier.size(20.dp)
             )
         }
+        Spacer(modifier = Modifier.width(MaterialTheme.spacing.extraSmall))
+        Text(text = String.format("%.1f", rating), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PriceTag(price: Float, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(MaterialTheme.spacing.extraSmall),
+        color = MaterialTheme.colorScheme.primaryContainer
+    ) {
+        Text(
+            text = "¥${String.format("%.0f", price)}",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.padding(horizontal = MaterialTheme.spacing.small, vertical = MaterialTheme.spacing.extraSmall)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TagChip(text: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(MaterialTheme.spacing.small),
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.padding(horizontal = MaterialTheme.spacing.small, vertical = MaterialTheme.spacing.extraSmall)
+        )
     }
 }
 

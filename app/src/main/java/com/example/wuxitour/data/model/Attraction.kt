@@ -2,111 +2,48 @@ package com.example.wuxitour.data.model
 
 import com.google.gson.annotations.SerializedName
 import java.util.*
+import com.google.gson.JsonElement
+import com.example.wuxitour.data.model.Location
 
 /**
- * 景点数据模型
+ * 景点数据模型 - 适配 App 内部逻辑和 Firebase 数据
  * @property id 景点唯一标识
  * @property name 景点名称
- * @property description 景点简介
- * @property detailedDescription 景点详细介绍
- * @property imageUrl 景点图片URL
  * @property address 景点地址
- * @property latitude 纬度
- * @property longitude 经度
- * @property openingHours 开放时间
- * @property phone 联系电话
- * @property website 官方网站
- * @property ticketInfo 门票信息
- * @property price 价格
- * @property rating 评分
- * @property category 景点类别
- * @property tags 标签列表
- * @property facilities 设施列表
- * @property reviews 评价列表
- * @property isHot 是否热门
+ * @property tags 景点标签
+ * @property location 景点位置
  * @property isFavorite 是否收藏
+ * @property photos 照片列表
+ * @property rating 评分
+ * @property cost 费用
+ * @property description 景点描述
+ * @property category 景点类别
+ * @property detailedDescription 景点详细描述
+ * @property reviews 景点评论列表
+ * @property website 景点官方网站
  */
 data class Attraction(
-    @SerializedName("id")
-    val id: String,
-    
-    @SerializedName("name")
-    val name: String?,
-    
-    @SerializedName("description")
-    val description: String?,
-    
-    @SerializedName("detailedDescription")
-    val detailedDescription: String?,
-    
-    @SerializedName("imageUrl")
-    val imageUrl: String?,
-    
-    @SerializedName("address")
-    val address: String?,
-    
-    @SerializedName("latitude")
-    val latitude: Double,
-    
-    @SerializedName("longitude")
-    val longitude: Double,
-    
-    @SerializedName("openingHours")
-    val openingHours: String?,
-    
-    @SerializedName("phone")
-    val phone: String?,
-    
-    @SerializedName("website")
-    val website: Any?,
-    
-    @SerializedName("ticketInfo")
-    val ticketInfo: String?,
-    
-    @SerializedName("price")
-    val price: String?,
-    
-    @SerializedName("rating")
-    val rating: Float?,
-    
-    @SerializedName("category")
-    val category: AttractionCategory,
-    
-    @SerializedName("tags")
-    val tags: List<String>?,
-    
-    @SerializedName("facilities")
-    val facilities: List<String>?,
-    
-    @SerializedName("reviews")
-    val reviews: MutableList<Review>?,
-    
-    @SerializedName("isHot")
-    val isHot: Boolean,
-
-    val isFavorite: Boolean = false
+    val id: String = "",
+    val name: String = "",
+    val address: String = "",
+    val tags: List<String> = emptyList(),
+    val location: Location? = null,
+    var isFavorite: Boolean = false,
+    val photos: List<Photo> = emptyList(),
+    val rating: Double = 0.0,
+    val cost: Double = 0.0,
+    val description: String = "",
+    val category: String = "",
+    val detailedDescription: String = "",
+    val reviews: List<Review> = emptyList(),
+    val website: String = ""
 ) {
-    fun getFirstWebsiteUrl(): String? {
-        return when (website) {
-            is String -> if (website.isNotEmpty()) website else null
-            is List<*> -> website.firstOrNull()?.toString()
-            else -> null
-        }
-    }
-
-    init {
-        require(id.isNotBlank()) { "景点ID不能为空" }
-        require(latitude in -90.0..90.0) { "纬度必须在-90到90之间" }
-        require(longitude in -180.0..180.0) { "经度必须在-180到180之间" }
-        require(rating ?: 0f in 0f..5f) { "评分必须在0到5之间" }
-    }
-
     /**
      * 获取景点位置信息
      * @return 位置信息字符串
      */
     fun getLocationInfo(): String {
-        return "经度: $longitude, 纬度: $latitude"
+        return address
     }
 
     /**
@@ -115,60 +52,49 @@ data class Attraction(
      */
     fun getBasicInfo(): String {
         return """
-            名称: ${name ?: "未知"}
-            地址: ${address ?: "不详"}
-            开放时间: ${openingHours ?: "未知"}
-            门票: ${price ?: "未知"}
-            评分: ${rating ?: "未知"}
+            名称: $name
+            地址: $address
+            标签: ${tags.joinToString(", ")}
+            评分: $rating
+            费用: $cost
+            描述: $description
+            类别: $category
+            官网: $website
         """.trimIndent()
     }
 
     /**
-     * 添加评价
-     * @param review 评价对象
+     * 获取经纬度
      */
-    fun addReview(review: Review) {
-        reviews?.add(0, review) // 新评价放在最前面
+    fun getLatLng(): Pair<Double, Double>? {
+        return location?.let { Pair(it.lat, it.lng) }
     }
 
     /**
-     * 获取平均评分
-     * @return 平均评分
+     * 获取第一张图片URL
      */
-    fun getAverageRating(): Float {
-        return if (reviews.isNullOrEmpty()) {
-            rating ?: 0f
-        } else {
-            reviews.map { it.rating }.average().toFloat()
-        }
+    fun getFirstImageUrl(): String? {
+        return photos.firstOrNull()?.url
     }
 
-    /**
-     * 检查是否开放
-     * @return 是否开放
-     */
-    fun isOpen(): Boolean {
-        val calendar = Calendar.getInstance() // Use Calendar instance
-        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
-        val currentMinute = calendar.get(Calendar.MINUTE)
-        
-        return try {
-            val (openHour, openMinute) = openingHours?.split("-")?.get(0)?.split(":")?.map { it.toInt() } ?: listOf(0, 0)
-            val (closeHour, closeMinute) = openingHours?.split("-")?.get(1)?.split(":")?.map { it.toInt() } ?: listOf(0, 0)
-            
-            val currentTimeInMinutes = currentHour * 60 + currentMinute
-            val openTimeInMinutes = openHour * 60 + openMinute
-            val closeTimeInMinutes = closeHour * 60 + closeMinute
-            
-            currentTimeInMinutes in openTimeInMinutes..closeTimeInMinutes
-        } catch (e: Exception) {
-            false
-        }
+    init {
+        require(id.isNotBlank()) { "景点ID不能为空" }
+        require(name.isNotBlank()) { "景点名称不能为空" }
+        require(address.isNotBlank()) { "景点地址不能为空" }
+        require(rating in 0.0..5.0) { "评分必须在0到5之间" }
+        require(cost >= 0.0) { "费用不能为负数" }
     }
 }
 
 /**
- * 景点类别枚举
+ * 景点照片数据模型
+ */
+data class Photo(
+    val url: String = ""
+)
+
+/**
+ * 景点类别枚举 (保留，但可能需要调整)
  */
 enum class AttractionCategory(val displayName: String) {
     @SerializedName("scenic_spot")
@@ -192,41 +118,14 @@ enum class AttractionCategory(val displayName: String) {
 
 /**
  * 评价数据模型
- * @property id 评价ID
- * @property userName 用户名
- * @property userAvatar 用户头像
- * @property rating 评分
+ * @property userName 评论作者
  * @property comment 评论内容
- * @property date 评价日期
- * @property images 评价图片列表
+ * @property rating 评论评分
+ * @property date 评论日期
  */
 data class Review(
-    @SerializedName("id")
-    val id: String,
-    
-    @SerializedName("userName")
-    val userName: String,
-    
-    @SerializedName("userAvatar")
-    val userAvatar: String,
-    
-    @SerializedName("rating")
-    val rating: Float,
-    
-    @SerializedName("comment")
-    val comment: String,
-    
-    @SerializedName("date")
-    val date: String,
-    
-    @SerializedName("images")
-    val images: List<String>? = emptyList()
-) {
-    init {
-        require(id.isNotBlank()) { "评价ID不能为空" }
-        require(userName.isNotBlank()) { "用户名不能为空" }
-        require(rating in 0f..5f) { "评分必须在0到5之间" }
-        require(comment.isNotBlank()) { "评论内容不能为空" }
-        require(date.isNotBlank()) { "评价日期不能为空" }
-    }
-}
+    val userName: String = "",
+    val comment: String = "",
+    val rating: Double = 5.0,
+    val date: String = ""
+)

@@ -1,47 +1,68 @@
 package com.example.wuxitour.data.model
 
+import androidx.annotation.Keep
+import com.google.firebase.firestore.DocumentId
+import com.google.firebase.firestore.IgnoreExtraProperties
 import com.google.gson.annotations.SerializedName
 
+@Keep
+@IgnoreExtraProperties
 data class Trip(
+    @DocumentId
     @SerializedName("id")
-    val id: String,
+    val id: String = "",
     
     @SerializedName("name")
-    val name: String,
+    val name: String = "",
     
     @SerializedName("description")
-    val description: String?,
+    val description: String? = null,
     
     @SerializedName("totalDays")
-    val totalDays: Int,
+    val totalDays: Int = 0,
     
     @SerializedName("attractions")
-    val attractions: List<TripAttraction>,
+    val attractions: List<TripAttraction> = emptyList(),
+    
+    @SerializedName("attractionIds")
+    val attractionIds: List<String> = emptyList(),
     
     @SerializedName("status")
-    val status: TripStatus,
+    val status: TripStatus = TripStatus.PLANNING,
     
     @SerializedName("startDate")
-    val startDate: Long,
+    val startDate: Long = 0L,
     
     @SerializedName("endDate")
-    val endDate: Long,
+    val endDate: Long = 0L,
     
     @SerializedName("estimatedCost")
-    val estimatedCost: Double
+    val estimatedCost: Double = 0.0,
+    
+    @SerializedName("userId")
+    val userId: String = "",
+    
+    @SerializedName("createdAt")
+    val createdAt: Long = System.currentTimeMillis(),
+    
+    @SerializedName("updatedAt")
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
+@Keep
+@IgnoreExtraProperties
 data class TripAttraction(
     @SerializedName("attraction")
     val attraction: Attraction,
     
     @SerializedName("visitDate")
-    val visitDate: Long,
+    val visitDate: Long = 0L,
     
     @SerializedName("notes")
     val notes: String? = null
 )
 
+@Keep
 enum class TripStatus(
     @SerializedName("displayName")
     val displayName: String

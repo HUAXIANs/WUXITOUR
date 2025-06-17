@@ -3,24 +3,24 @@ package com.example.wuxitour.ui.screens.attractions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wuxitour.data.model.Attraction
-import com.example.wuxitour.data.model.AttractionCategory
 import com.example.wuxitour.data.repository.AttractionRepository
 import com.example.wuxitour.data.repository.UserRepository
 import com.example.wuxitour.utils.Logger
 import com.example.wuxitour.data.common.NetworkResult
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 data class AttractionsUiState(
     val isLoading: Boolean = false,
     val allAttractions: List<Attraction> = emptyList(),
-    val categories: List<AttractionCategory> = AttractionCategory.values().toList(),
     val searchQuery: String = "",
-    val selectedCategory: AttractionCategory? = null,
     val error: String? = null
 )
 
-class AttractionsViewModel(
+@HiltViewModel
+class AttractionsViewModel @Inject constructor(
     private val repository: AttractionRepository,
     private val userRepository: UserRepository
 ) : ViewModel() {
@@ -31,12 +31,10 @@ class AttractionsViewModel(
     val filteredAttractions: StateFlow<List<Attraction>> =
         _uiState.map { state ->
             state.allAttractions.filter { attraction ->
-                val matchesCategory = state.selectedCategory == null || attraction.category == state.selectedCategory
-                val matchesQuery = state.searchQuery.isBlank() ||
-                        (attraction.name?.contains(state.searchQuery, ignoreCase = true) == true) ||
-                        (attraction.description?.contains(state.searchQuery, ignoreCase = true) == true) ||
-                        (attraction.tags?.any { it.contains(state.searchQuery, ignoreCase = true) } == true)
-                matchesCategory && matchesQuery
+                state.searchQuery.isBlank() ||
+                        (attraction.name.contains(state.searchQuery, ignoreCase = true)) ||
+                        (attraction.category?.contains(state.searchQuery, ignoreCase = true) == true) ||
+                        (attraction.tags?.any { tag -> tag.contains(state.searchQuery, ignoreCase = true) } == true)
             }
         }.stateIn(
             scope = viewModelScope,
@@ -76,6 +74,9 @@ class AttractionsViewModel(
                             }
                             Logger.e("加载景点列表失败: ${result.message}")
                         }
+                        is NetworkResult.Empty -> {
+                            _uiState.update { it.copy(isLoading = false, error = "没有找到景点数据") }
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -92,10 +93,6 @@ class AttractionsViewModel(
 
     fun onSearchQueryChanged(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
-    }
-
-    fun onCategorySelected(category: AttractionCategory?) {
-        _uiState.update { it.copy(selectedCategory = category) }
     }
 
     fun onFavoriteClick(attraction: Attraction) {
@@ -141,8 +138,10 @@ class AttractionsViewModel(
                         }
                     }
                     is NetworkResult.Loading -> {
-                        // Handle loading state if needed
                         _uiState.update { currentState -> currentState.copy(isLoading = true) }
+                    }
+                    is NetworkResult.Empty -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = "操作完成，但无返回数据") }
                     }
                 }
             }

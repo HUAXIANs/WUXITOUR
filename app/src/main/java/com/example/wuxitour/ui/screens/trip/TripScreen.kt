@@ -25,25 +25,12 @@ import com.example.wuxitour.data.repository.TripRepository
 import com.example.wuxitour.data.repository.UserRepository
 import androidx.compose.runtime.remember
 
-class TripViewModelFactory(private val tripRepository: TripRepository, private val userRepository: UserRepository) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(TripViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return TripViewModel(tripRepository, userRepository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripScreen(
+    viewModel: TripViewModel,
     onNavigateToTripDetail: (String) -> Unit
 ) {
-    val attractionRepository = remember { AttractionRepository() }
-    val tripRepository = remember { TripRepository(attractionRepository) }
-    val userRepository = remember { UserRepository() }
-    val viewModel: TripViewModel = viewModel(factory = TripViewModelFactory(tripRepository, userRepository))
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(

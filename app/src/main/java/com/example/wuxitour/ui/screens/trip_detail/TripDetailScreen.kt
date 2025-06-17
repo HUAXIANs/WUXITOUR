@@ -25,28 +25,14 @@ import com.example.wuxitour.data.repository.UserRepository
 import androidx.compose.runtime.remember
 import com.example.wuxitour.data.repository.AttractionRepository
 
-class TripDetailViewModelFactory(private val repository: TripRepository, private val userRepository: UserRepository) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(TripDetailViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return TripDetailViewModel(repository, userRepository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripDetailScreen(
+    viewModel: TripDetailViewModel,
     tripId: String,
     onBackClick: () -> Unit,
     onNavigateToAttraction: (String) -> Unit
 ) {
-    val tripRepository = remember { TripRepository(attractionRepository = AttractionRepository()) }
-    val userRepository = remember { UserRepository() }
-    val viewModel: TripDetailViewModel = viewModel(factory = TripDetailViewModelFactory(tripRepository, userRepository))
-
-    // 使用 LaunchedEffect 并以 tripId 作为 key，确保在 tripId 变化时重新加载数据
     LaunchedEffect(tripId) {
         viewModel.loadTripDetails(tripId)
     }
@@ -82,7 +68,6 @@ fun TripDetailScreen(
 
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            // 连接智能排序按钮的逻辑
                             Button(onClick = { viewModel.sortAttractionsIntelligently() }) {
                                 Icon(Icons.Default.Sort, contentDescription = "智能排序")
                                 Spacer(Modifier.width(8.dp))
@@ -103,14 +88,13 @@ fun TripDetailScreen(
                     if (trip.attractions.isEmpty()) {
                         item { Text("该行程暂无景点，快去添加吧！") }
                     } else {
-                        // 使用 itemsIndexed 来显示序号
                         itemsIndexed(trip.attractions, key = { _, item -> item.attraction.id }) { index, tripAttraction ->
                             TripAttractionItem(
                                 index = index + 1,
                                 tripAttraction = tripAttraction,
                                 onRemoveClick = { viewModel.removeAttraction(tripAttraction.attraction.id) },
                                 onCardClick = { onNavigateToAttraction(tripAttraction.attraction.id) },
-                                onFavoriteClick = { attraction -> viewModel.toggleFavoriteAttraction(attraction) }
+                                onFavoriteClick = { viewModel.toggleFavoriteAttraction(it) }
                             )
                         }
                     }
@@ -122,7 +106,6 @@ fun TripDetailScreen(
     }
 }
 
-// 新增：一个专门用于行程详情页的景点卡片，带有序号和删除按钮
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripAttractionItem(
@@ -136,23 +119,20 @@ fun TripAttractionItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // 显示序号
         Text(
             text = "$index",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.primary
         )
 
-        // 景点卡片，权重为1，使其占据剩余空间
         Box(modifier = Modifier.weight(1f)) {
             AttractionCard(
                 attraction = tripAttraction.attraction,
                 onClick = onCardClick,
-                onFavoriteClick = onFavoriteClick
+                onFavoriteClick = { onFavoriteClick(tripAttraction.attraction) }
             )
         }
 
-        // 删除按钮
         IconButton(onClick = onRemoveClick) {
             Icon(
                 imageVector = Icons.Default.Delete,

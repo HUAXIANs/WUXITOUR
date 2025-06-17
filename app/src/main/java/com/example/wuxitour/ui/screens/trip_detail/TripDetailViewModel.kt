@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.*
 import com.example.wuxitour.data.model.Attraction
 import com.example.wuxitour.data.repository.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 data class TripDetailUiState(
     val isLoading: Boolean = true,
@@ -19,7 +21,8 @@ data class TripDetailUiState(
     val error: String? = null
 )
 
-class TripDetailViewModel(
+@HiltViewModel
+class TripDetailViewModel @Inject constructor(
     private val repository: TripRepository,
     private val userRepository: UserRepository
 ) : ViewModel() {
@@ -54,6 +57,10 @@ class TripDetailViewModel(
                             }
                             Logger.e("加载行程详情失败: ${result.message}")
                         }
+                        is NetworkResult.Empty -> {
+                            _uiState.update { it.copy(isLoading = false, error = result.message) }
+                            Logger.d("加载行程详情：数据为空 - ${result.message}")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -85,6 +92,10 @@ class TripDetailViewModel(
                         Logger.e("移除景点失败: ${it.message}")
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
                     }
+                    is NetworkResult.Empty -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
+                        Logger.d("移除景点：数据为空 - ${it.message}")
+                    }
                 }
             }
         }
@@ -108,10 +119,10 @@ class TripDetailViewModel(
 
                     for (nextAttraction in remainingAttractions) {
                         val distance = calculateDistance(
-                            currentAttraction.attraction.latitude,
-                            currentAttraction.attraction.longitude,
-                            nextAttraction.attraction.latitude,
-                            nextAttraction.attraction.longitude
+                            currentAttraction.attraction.location?.lat ?: 0.0,
+                            currentAttraction.attraction.location?.lng ?: 0.0,
+                            nextAttraction.attraction.location?.lat ?: 0.0,
+                            nextAttraction.attraction.location?.lng ?: 0.0
                         )
                         if (distance < minDistance) {
                             minDistance = distance
@@ -139,6 +150,10 @@ class TripDetailViewModel(
                             Logger.e("重新排序景点失败: ${it.message}")
                             _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
                         }
+                        is NetworkResult.Empty -> {
+                            _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
+                            Logger.d("重新排序景点：数据为空 - ${it.message}")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -150,7 +165,11 @@ class TripDetailViewModel(
         }
     }
 
-    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    private fun calculateDistance(lat1: Double?, lon1: Double?, lat2: Double?, lon2: Double?): Double {
+        if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) {
+            Logger.w("计算距离时经纬度信息缺失")
+            return 0.0 // 或者根据业务需求抛出异常或返回一个特殊值
+        }
         val r = 6371 // 地球半径
         val dLat = Math.toRadians(lat2 - lat1)
         val dLon = Math.toRadians(lon2 - lon1)
@@ -195,6 +214,10 @@ class TripDetailViewModel(
                             _uiState.update { currentState -> currentState.copy(error = it.message) }
                         }
                         is NetworkResult.Loading -> { /* Handle loading state if needed */ }
+                        is NetworkResult.Empty -> {
+                            Logger.d("移除收藏：数据为空 - ${it.message}")
+                            _uiState.update { currentState -> currentState.copy(error = it.message) }
+                        }
                     }
                 }
             } else {
@@ -219,6 +242,10 @@ class TripDetailViewModel(
                             _uiState.update { currentState -> currentState.copy(error = it.message) }
                         }
                         is NetworkResult.Loading -> { /* Handle loading state if needed */ }
+                        is NetworkResult.Empty -> {
+                            Logger.d("添加收藏：数据为空 - ${it.message}")
+                            _uiState.update { currentState -> currentState.copy(error = it.message) }
+                        }
                     }
                 }
             }

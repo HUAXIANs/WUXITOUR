@@ -3,7 +3,7 @@ package com.example.wuxitour.ui.screens.trip
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wuxitour.data.model.Trip
-import com.example.wuxitour.data.repository.MockDataRepository
+// import com.example.wuxitour.data.repository.MockDataRepository // 删除此行
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +14,8 @@ import com.example.wuxitour.data.repository.TripRepository
 import com.example.wuxitour.data.repository.UserRepository
 import com.example.wuxitour.data.common.NetworkResult
 import com.example.wuxitour.utils.Logger
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 data class TripUiState(
     val isLoading: Boolean = false,
@@ -22,7 +24,8 @@ data class TripUiState(
     val error: String? = null
 )
 
-class TripViewModel(
+@HiltViewModel
+class TripViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val userRepository: UserRepository
 ) : ViewModel() {
@@ -38,10 +41,10 @@ class TripViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
             userRepository.getUserTrips().collect { result ->
                 when (result) {
-                    is NetworkResult.Loading -> {
+                    is NetworkResult.Loading<List<Trip>> -> {
                         _uiState.update { it.copy(isLoading = true) }
                     }
-                    is NetworkResult.Success -> {
+                    is NetworkResult.Success<List<Trip>> -> {
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -50,7 +53,11 @@ class TripViewModel(
                             )
                         }
                     }
-                    is NetworkResult.Error -> {
+                    is NetworkResult.Empty<List<Trip>> -> {
+                        _uiState.update { it.copy(isLoading = false, trips = emptyList(), error = result.message) }
+                        Logger.i("加载行程列表：数据为空 - ${result.message}")
+                    }
+                    is NetworkResult.Error<List<Trip>> -> {
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -69,14 +76,18 @@ class TripViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
             tripRepository.deleteTrip(id).collect {
                 when (it) {
-                    is NetworkResult.Loading -> {
+                    is NetworkResult.Loading<Boolean> -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = true) }
                     }
-                    is NetworkResult.Success -> {
+                    is NetworkResult.Success<Boolean> -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = null) }
                         loadTrips() // 删除成功后重新加载列表
                     }
-                    is NetworkResult.Error -> {
+                    is NetworkResult.Empty<Boolean> -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
+                        Logger.i("删除行程：数据为空 - ${it.message}")
+                    }
+                    is NetworkResult.Error<Boolean> -> {
                         Logger.e("删除行程失败: ${it.message}")
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
                     }
@@ -106,15 +117,19 @@ class TripViewModel(
             )
             tripRepository.createTrip(newTrip).collect {
                 when (it) {
-                    is NetworkResult.Loading -> {
+                    is NetworkResult.Loading<Trip> -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = true) }
                     }
-                    is NetworkResult.Success -> {
+                    is NetworkResult.Success<Trip> -> {
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = null) }
                         showCreateTripDialog(false)
                         loadTrips() // 创建成功后重新加载列表
                     }
-                    is NetworkResult.Error -> {
+                    is NetworkResult.Empty<Trip> -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
+                        Logger.i("创建行程：数据为空 - ${it.message}")
+                    }
+                    is NetworkResult.Error<Trip> -> {
                         Logger.e("创建行程失败: ${it.message}")
                         _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
                     }

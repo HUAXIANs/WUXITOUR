@@ -5,17 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.wuxitour.data.model.Attraction
 import com.example.wuxitour.data.model.User
 import com.example.wuxitour.data.model.UserFootprint
-import com.example.wuxitour.data.repository.UserRepository
 import com.example.wuxitour.data.repository.AttractionRepository
 import com.example.wuxitour.utils.Logger
 import com.example.wuxitour.data.common.NetworkResult
-import com.example.wuxitour.data.model.LoginRequest
-import com.example.wuxitour.data.model.RegisterRequest
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import com.example.wuxitour.data.repository.UserRepository
 
 data class ProfileUiState(
     val isLoading: Boolean = false,
@@ -28,7 +28,8 @@ data class ProfileUiState(
     val error: String? = null
 )
 
-class ProfileViewModel(
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val attractionRepository: AttractionRepository
 ) : ViewModel() {
@@ -64,8 +65,11 @@ class ProfileViewModel(
                                 )
                             }
                         }
-                        is NetworkResult.Loading -> {
+                        is NetworkResult.Loading<User> -> {
                             _uiState.update { it.copy(isLoading = true) }
+                        }
+                        is NetworkResult.Empty<User> -> {
+                            _uiState.update { it.copy(isLoading = false, isLoggedIn = false, user = null, error = "没有用户数据") }
                         }
                     }
                 }
@@ -87,8 +91,7 @@ class ProfileViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
             
             try {
-                val loginRequest = LoginRequest(username, password)
-                userRepository.login(loginRequest).collect { result ->
+                userRepository.login(username, password).collect { result ->
                     when (result) {
                         is NetworkResult.Loading<User> -> {
                             _uiState.update { it.copy(isLoading = true) }
@@ -115,6 +118,9 @@ class ProfileViewModel(
                             }
                             Logger.e("登录失败: ${result.message}")
                         }
+                        is NetworkResult.Empty<User> -> {
+                            _uiState.update { it.copy(isLoading = false, error = "登录成功，但无用户数据") }
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -133,11 +139,20 @@ class ProfileViewModel(
         viewModelScope.launch {
             try {
                 userRepository.logout().collect { result ->
-                    if (result is NetworkResult.Success) {
-                        _uiState.value = ProfileUiState()
-                    } else if (result is NetworkResult.Error) {
-                        Logger.e("退出登录失败: ${result.message}")
-                        _uiState.update { it.copy(error = result.message) }
+                    when (result) {
+                        is NetworkResult.Success<Boolean> -> {
+                            _uiState.value = ProfileUiState()
+                        }
+                        is NetworkResult.Error<Boolean> -> {
+                            Logger.e("退出登录失败: ${result.message}")
+                            _uiState.update { it.copy(error = result.message) }
+                        }
+                        is NetworkResult.Loading<Boolean> -> {
+                            _uiState.update { it.copy(isLoading = true) }
+                        }
+                        is NetworkResult.Empty<Boolean> -> {
+                            _uiState.value = ProfileUiState(error = "退出登录成功，但无返回数据")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -154,8 +169,7 @@ class ProfileViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
             
             try {
-                val registerRequest = RegisterRequest(username, password, email)
-                userRepository.register(registerRequest).collect { result ->
+                userRepository.register(email, password, username).collect { result ->
                     when (result) {
                         is NetworkResult.Loading<User> -> {
                             _uiState.update { it.copy(isLoading = true) }
@@ -171,6 +185,9 @@ class ProfileViewModel(
                                 )
                             }
                             Logger.e("注册失败: ${result.message}")
+                        }
+                        is NetworkResult.Empty<User> -> {
+                            _uiState.update { it.copy(isLoading = false, error = "注册成功，但无用户数据") }
                         }
                     }
                 }
@@ -198,7 +215,12 @@ class ProfileViewModel(
                         Logger.e("获取收藏景点详情失败: ${result.message}")
                         _uiState.update { it.copy(error = result.message) }
                     }
-                    is NetworkResult.Loading<Attraction> -> { /* Not handling loading for individual fetches here */ }
+                    is NetworkResult.Loading<Attraction> -> {
+                        Logger.d("正在加载景点详情: $id")
+                    }
+                    is NetworkResult.Empty<Attraction> -> {
+                        Logger.d("未找到景点详情: $id")
+                    }
                 }
             }
         }
@@ -224,29 +246,103 @@ class ProfileViewModel(
                         Logger.e("加载收藏失败: ${result.message}")
                         _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
+                    is NetworkResult.Empty<List<String>> -> {
+                        Logger.e("加载收藏：数据为空 - ${result.message}")
+                        _uiState.update { it.copy(isLoading = false, error = result.message) }
+                    }
                 }
             }
         }
     }
 
-    fun showLoginDialog(show: Boolean) {
-        _uiState.update { it.copy(showLoginDialog = show, showRegisterDialog = false) }
+    fun addFavorite(attractionId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            userRepository.addFavoriteAttraction(attractionId).collect {
+                when (it) {
+                    is NetworkResult.Loading<Boolean> -> _uiState.update { state -> state.copy(isLoading = true) }
+                    is NetworkResult.Success<Boolean> -> {
+                        if (it.data) loadFavorites()
+                        _uiState.update { state -> state.copy(isLoading = false, error = null) }
+                    }
+                    is NetworkResult.Error<Boolean> -> _uiState.update { state -> state.copy(isLoading = false, error = it.message) }
+                    is NetworkResult.Empty<Boolean> -> _uiState.update { state -> state.copy(isLoading = false, error = "添加收藏失败：返回数据为空") }
+                }
+            }
+        }
     }
 
-    fun showRegisterDialog(show: Boolean) {
-        _uiState.update { it.copy(showLoginDialog = false, showRegisterDialog = show) }
+    fun removeFavorite(attractionId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            userRepository.removeFavoriteAttraction(attractionId).collect {
+                when (it) {
+                    is NetworkResult.Loading<Boolean> -> _uiState.update { state -> state.copy(isLoading = true) }
+                    is NetworkResult.Success<Boolean> -> {
+                        if (it.data) loadFavorites()
+                        _uiState.update { state -> state.copy(isLoading = false, error = null) }
+                    }
+                    is NetworkResult.Error<Boolean> -> _uiState.update { state -> state.copy(isLoading = false, error = it.message) }
+                    is NetworkResult.Empty<Boolean> -> _uiState.update { state -> state.copy(isLoading = false, error = "移除收藏失败：返回数据为空") }
+                }
+            }
+        }
+    }
+
+    fun toggleFavoriteAttraction(attraction: Attraction) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            val userId = _uiState.value.user?.id ?: run {
+                _uiState.update { it.copy(isLoading = false, error = "用户未登录") }
+                return@launch
+            }
+
+            val isCurrentlyFavorite = attraction.isFavorite
+
+            val actionFlow = if (isCurrentlyFavorite) {
+                userRepository.removeFavoriteAttraction(attraction.id)
+            } else {
+                userRepository.addFavoriteAttraction(attraction.id)
+            }
+
+            actionFlow.collect {
+                when (it) {
+                    is NetworkResult.Success -> {
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                isLoading = false,
+                                favorites = if (isCurrentlyFavorite) {
+                                    currentState.favorites.filter { fav -> fav.id != attraction.id }
+                                } else {
+                                    currentState.favorites + attraction.copy(isFavorite = true)
+                                },
+                                error = null
+                            )
+                        }
+                        loadFavorites()
+                    }
+                    is NetworkResult.Error -> {
+                        Logger.e("切换收藏状态失败: ${it.message}")
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
+                    }
+                    is NetworkResult.Loading -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = true) }
+                    }
+                    is NetworkResult.Empty -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = "操作完成，但无返回数据") }
+                    }
+                }
+            }
+        }
     }
 
     fun loadFootprints() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val userId = uiState.value.user?.id ?: run {
-                _uiState.update { it.copy(isLoading = false, error = "用户未登录，无法加载足迹") }
-                return@launch
-            }
-            userRepository.getUserFootprints(userId).collect { result ->
+            userRepository.getUserFootprints().collect { result ->
                 when (result) {
-                    is NetworkResult.Loading -> {
+                    is NetworkResult.Loading<List<UserFootprint>> -> {
                         _uiState.update { it.copy(isLoading = true) }
                     }
                     is NetworkResult.Success<List<UserFootprint>> -> {
@@ -258,48 +354,71 @@ class ProfileViewModel(
                         Logger.e("加载足迹失败: ${result.message}")
                         _uiState.update { it.copy(isLoading = false, error = result.message) }
                     }
+                    is NetworkResult.Empty<List<UserFootprint>> -> {
+                        Logger.e("加载足迹：数据为空 - ${result.message}")
+                        _uiState.update { it.copy(isLoading = false, error = result.message) }
+                    }
                 }
             }
         }
     }
 
-    fun toggleFavoriteAttraction(attraction: Attraction) {
+    fun addUserFootprint(attractionId: String) {
         viewModelScope.launch {
-            val currentFavorites = _uiState.value.favorites
-            val isFavorite = currentFavorites.any { it.id == attraction.id }
-
-            if (isFavorite) {
-                userRepository.removeFavoriteAttraction(attraction.id).collect { result ->
-                    when (result) {
-                        is NetworkResult.Success -> {
-                            _uiState.update { currentState ->
-                                currentState.copy(favorites = currentFavorites.filter { fav -> fav.id != attraction.id })
-                            }
-                        }
-                        is NetworkResult.Error -> {
-                            Logger.e("移除收藏失败: ${result.message}")
-                            _uiState.update { currentState -> currentState.copy(error = result.message) }
-                        }
-                        is NetworkResult.Loading -> { /* Handle loading state if needed */ }
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            userRepository.addUserFootprint(attractionId).collect {
+                when (it) {
+                    is NetworkResult.Loading<Boolean> -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = true) }
                     }
-                }
-            } else {
-                userRepository.addFavoriteAttraction(attraction.id).collect { result ->
-                    when (result) {
-                        is NetworkResult.Success -> {
-                            _uiState.update { currentState ->
-                                currentState.copy(favorites = currentState.favorites + attraction)
-                            }
-                        }
-                        is NetworkResult.Error -> {
-                            Logger.e("添加收藏失败: ${result.message}")
-                            _uiState.update { currentState -> currentState.copy(error = result.message) }
-                        }
-                        is NetworkResult.Loading -> { /* Handle loading state if needed */ }
+                    is NetworkResult.Success<Boolean> -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = null) }
+                        loadFootprints()
+                    }
+                    is NetworkResult.Error<Boolean> -> {
+                        Logger.e("添加足迹失败: ${it.message}")
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
+                    }
+                    is NetworkResult.Empty<Boolean> -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
+                        Logger.d("添加足迹：数据为空 - ${it.message}")
                     }
                 }
             }
         }
+    }
+
+    fun removeUserFootprint(attractionId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            userRepository.removeUserFootprint(attractionId).collect {
+                when (it) {
+                    is NetworkResult.Loading<Boolean> -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = true) }
+                    }
+                    is NetworkResult.Success<Boolean> -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = null) }
+                        loadFootprints()
+                    }
+                    is NetworkResult.Error<Boolean> -> {
+                        Logger.e("移除足迹失败: ${it.message}")
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
+                    }
+                    is NetworkResult.Empty<Boolean> -> {
+                        _uiState.update { currentState -> currentState.copy(isLoading = false, error = it.message) }
+                        Logger.d("移除足迹：数据为空 - ${it.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    fun showLoginDialog(show: Boolean) {
+        _uiState.update { it.copy(showLoginDialog = show) }
+    }
+
+    fun showRegisterDialog(show: Boolean) {
+        _uiState.update { it.copy(showRegisterDialog = show) }
     }
 
     fun clearError() {

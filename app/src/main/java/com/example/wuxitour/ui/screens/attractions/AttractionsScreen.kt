@@ -32,6 +32,12 @@ import com.example.wuxitour.data.model.AttractionCategory
 import com.example.wuxitour.data.repository.AttractionRepository
 import com.example.wuxitour.data.repository.UserRepository
 import androidx.compose.runtime.remember
+import com.example.wuxitour.ui.components.LoadingIndicator
+import com.example.wuxitour.ui.components.ErrorState
+import com.example.wuxitour.ui.components.RatingBar
+import com.example.wuxitour.ui.components.PriceTag
+import com.example.wuxitour.ui.components.TagChip
+import com.example.wuxitour.ui.theme.spacing
 
 class AttractionsViewModelFactory(private val attractionRepository: AttractionRepository, private val userRepository: UserRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -43,207 +49,155 @@ class AttractionsViewModelFactory(private val attractionRepository: AttractionRe
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttractionsScreen(
-    onAttractionClick: (String) -> Unit
+    onAttractionClick: (Attraction) -> Unit,
+    viewModel: AttractionsViewModel
 ) {
-    val attractionRepository = remember { AttractionRepository() }
-    val userRepository = remember { UserRepository() }
-    val viewModel: AttractionsViewModel = viewModel(factory = AttractionsViewModelFactory(attractionRepository, userRepository))
     val uiState by viewModel.uiState.collectAsState()
-    // 直接从ViewModel订阅筛选后的列表
     val filteredAttractions by viewModel.filteredAttractions.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // --- 搜索和分类UI ---
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = viewModel::onSearchQueryChanged,
-                label = { Text("搜索景点名称、描述...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "搜索") },
-                modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = MaterialTheme.spacing.medium)
+    ) {
+        // 搜索栏
+        SearchBar(
+            query = uiState.searchQuery,
+            onQueryChange = viewModel::onSearchQueryChanged,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = MaterialTheme.spacing.medium)
+        )
+
+        // 错误信息
+        uiState.error?.let { error ->
+            ErrorState(
+                description = error,
+                onAction = { viewModel.refresh() }
             )
-            Spacer(Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item {
-                    FilterChip(
-                        selected = uiState.selectedCategory == null,
-                        onClick = { viewModel.onCategorySelected(null) },
-                        label = { Text("全部") }
-                    )
-                }
-                items(uiState.categories) { category ->
-                    FilterChip(
-                        selected = uiState.selectedCategory == category,
-                        onClick = { viewModel.onCategorySelected(category) },
-                        label = { Text(category.displayName) }
-                    )
-                }
-            }
         }
 
-        Divider()
-
+        // 加载指示器
         if (uiState.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (filteredAttractions.isEmpty()) {
-                    item {
-                        Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-                            Text("没有找到相关景点", style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
-                } else {
-                    items(filteredAttractions, key = { it.id }) { attraction ->
-                        AttractionCard(
-                            attraction = attraction,
-                            onClick = { onAttractionClick(attraction.id) },
-                            onFavoriteClick = { viewModel.onFavoriteClick(attraction) }
-                        )
-                    }
-                }
+            LoadingIndicator()
+        }
+
+        // 景点列表
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
+        ) {
+            items(filteredAttractions) { attraction ->
+                AttractionCard(
+                    attraction = attraction,
+                    onClick = { onAttractionClick(attraction) },
+                    onFavoriteClick = { viewModel.onFavoriteClick(attraction) }
+                )
             }
         }
     }
 }
 
-// --- "出彩"的景点卡片 ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier,
+        placeholder = { Text("搜索景点") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "搜索") },
+        singleLine = true,
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            disabledContainerColor = MaterialTheme.colorScheme.surface,
+        )
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttractionCard(
-    modifier: Modifier = Modifier,
     attraction: Attraction,
     onClick: () -> Unit,
-    onFavoriteClick: (Attraction) -> Unit
+    onFavoriteClick: () -> Unit
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column {
-            // 图片部分
-            Box(
+        Column(
+            modifier = Modifier.padding(MaterialTheme.spacing.medium)
+        ) {
+            // 图片
+            AsyncImage(
+                model = attraction.photos?.firstOrNull()?.url ?: "",
+                contentDescription = attraction.name ?: "景点图片",
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
-            ) {
-                AsyncImage(
-                    model = attraction.imageUrl,
-                    contentDescription = attraction.name ?: "景点图片",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                
-                // 热门标签
-                if (attraction.isHot) {
-                    Surface(
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .align(Alignment.TopStart),
-                        color = MaterialTheme.colorScheme.error,
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            text = "热门",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onError
-                        )
-                    }
-                }
-                
-                // 收藏按钮
-                IconButton(
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .align(Alignment.TopEnd),
-                    onClick = { onFavoriteClick(attraction) }
-                ) {
-                    Icon(
-                        imageVector = if (attraction.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = "收藏",
-                        tint = if (attraction.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-            
-            // 内容部分
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
+
+            // 标题和收藏按钮
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = attraction.name ?: "名称未知",
                     style = MaterialTheme.typography.titleLarge
                 )
-                
-                Text(
-                    text = attraction.description ?: "无简介",
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 评分
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Star,
-                            contentDescription = "评分",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = String.format("%.1f", attraction.rating ?: 0f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    
-                    // 价格
-                    Text(
-                        text = attraction.price ?: "价格不详",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
+                IconButton(onClick = onFavoriteClick) {
+                    Icon(
+                        imageVector = if (attraction.isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = if (attraction.isFavorite) "取消收藏" else "收藏",
+                        tint = if (attraction.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                 }
-                
-                // 标签
-                if (attraction.tags?.isNotEmpty() == true) {
-                    Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        attraction.tags.take(3).forEach { tag ->
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.secondaryContainer
-                            ) {
-                                Text(
-                                    text = tag,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
-                    }
-                }
             }
+
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
+
+            // 评分和价格
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RatingBar(rating = attraction.rating.toFloat())
+                PriceTag(price = attraction.cost.toFloat())
+            }
+
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
+
+            // 描述
+            Text(
+                text = attraction.description ?: "无简介",
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
+
+            // 标签（如需恢复请补充Attraction数据类的category、tags字段）
+            // Row(
+            //     modifier = Modifier.fillMaxWidth(),
+            //     horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
+            // ) {
+            //     attraction.category?.let { TagChip(text = it) }
+            //     attraction.tags?.forEach { tag: String -> TagChip(text = tag) }
+            // }
         }
     }
 }

@@ -60,23 +60,3 @@ data class User(
     @SerializedName("updatedAt")
     val updatedAt: Long = 0L
 )
-
-data class UserFootprint(
-    @SerializedName("id")
-    val id: String,
-    
-    @SerializedName("userId")
-    val userId: String,
-    
-    @SerializedName("attractionId")
-    val attractionId: String,
-    
-    @SerializedName("visitDate")
-    val visitDate: Long,
-    
-    @SerializedName("photos")
-    val photos: List<String>?,
-    
-    @SerializedName("notes")
-    val notes: String?
-)

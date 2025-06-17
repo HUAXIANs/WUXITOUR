@@ -13,10 +13,12 @@ import com.example.wuxitour.BuildConfig
 import com.amap.api.maps.MapsInitializer
 import com.amap.api.navi.NaviSetting
 import com.amap.api.services.core.ServiceSettings
+import dagger.hilt.android.HiltAndroidApp
 
 /**
  * 应用程序类
  */
+@HiltAndroidApp
 class WuxiTourApplication : Application() {
 
     private var isInitialized = false

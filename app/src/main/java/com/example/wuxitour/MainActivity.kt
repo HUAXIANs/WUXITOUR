@@ -26,10 +26,28 @@ import com.example.wuxitour.ui.screens.trip_detail.TripDetailScreen
 import com.example.wuxitour.ui.screens.guide.GuideScreen
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.CreationExtras
+import com.example.wuxitour.data.api.NetworkConfig
 import com.example.wuxitour.data.repository.AttractionRepository
-import com.example.wuxitour.data.repository.UserRepository
-import com.example.wuxitour.ui.screens.home.HomeViewModelFactory
+import com.example.wuxitour.data.repository.GuideRepository
+import com.example.wuxitour.data.repository.FirebaseTripRepository
+import com.example.wuxitour.data.repository.FirebaseUserRepository
+import com.example.wuxitour.ui.screens.attractions.AttractionsViewModel
+import com.example.wuxitour.ui.screens.detail.AttractionDetailViewModel
+import com.example.wuxitour.ui.screens.guide.GuideViewModel
+import com.example.wuxitour.ui.screens.home.HomeViewModel
+import com.example.wuxitour.ui.screens.profile.ProfileViewModel
+import com.example.wuxitour.ui.screens.trip.TripViewModel
+import com.example.wuxitour.ui.screens.trip_detail.TripDetailViewModel
+import androidx.lifecycle.viewmodel.MutableCreationExtras
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.createSavedStateHandle
+import dagger.hilt.android.AndroidEntryPoint
+import androidx.hilt.navigation.compose.hiltViewModel
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,35 +67,46 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifier) {
-    val attractionRepository = remember { AttractionRepository() }
-    val userRepository = remember { UserRepository() }
-    val homeViewModelFactory = remember { HomeViewModelFactory(attractionRepository, userRepository) }
-
     NavHost(
         navController = navController,
         startDestination = BottomNavItem.Home.route,
         modifier = modifier
     ) {
         composable(BottomNavItem.Home.route) {
+            val homeViewModel: HomeViewModel = hiltViewModel()
             HomeScreen(
-                viewModel = viewModel(factory = homeViewModelFactory),
+                viewModel = homeViewModel,
                 onAttractionClick = { id -> navController.navigate("attraction_detail/$id") }
             )
         }
         composable(BottomNavItem.Attractions.route) {
-            AttractionsScreen(onAttractionClick = { id -> navController.navigate("attraction_detail/$id") })
+            val attractionsViewModel: AttractionsViewModel = hiltViewModel()
+            AttractionsScreen(
+                viewModel = attractionsViewModel,
+                onAttractionClick = { id -> navController.navigate("attraction_detail/$id") }
+            )
         }
         composable(BottomNavItem.Trip.route) {
-            TripScreen(onNavigateToTripDetail = { tripId ->
-                navController.navigate("trip_detail/$tripId")
-            }
+            val tripViewModel: TripViewModel = hiltViewModel()
+            TripScreen(
+                viewModel = tripViewModel,
+                onNavigateToTripDetail = { tripId ->
+                    navController.navigate("trip_detail/$tripId")
+                }
             )
         }
         composable(BottomNavItem.Profile.route) {
-            ProfileScreen(onNavigateToAttraction = { id -> navController.navigate("attraction_detail/$id") })
+            val profileViewModel: ProfileViewModel = hiltViewModel()
+            ProfileScreen(
+                viewModel = profileViewModel,
+                onNavigateToAttraction = { id -> navController.navigate("attraction_detail/$id") }
+            )
         }
         composable(BottomNavItem.Guide.route) {
-            GuideScreen()
+            val guideViewModel: GuideViewModel = hiltViewModel()
+            GuideScreen(
+                viewModel = guideViewModel
+            )
         }
         composable(
             route = "attraction_detail/{attractionId}",
@@ -85,7 +114,9 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
         ) { backStackEntry ->
             val attractionId = backStackEntry.arguments?.getString("attractionId")
             requireNotNull(attractionId)
+            val attractionDetailViewModel: AttractionDetailViewModel = hiltViewModel()
             AttractionDetailScreen(
+                viewModel = attractionDetailViewModel,
                 attractionId = attractionId,
                 onBackClick = { navController.popBackStack() }
             )
@@ -96,8 +127,9 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
         ) { backStackEntry ->
             val tripId = backStackEntry.arguments?.getString("tripId")
             requireNotNull(tripId)
-            // TripDetailScreen 是我们下一阶段要完善的页面
+            val tripDetailViewModel: TripDetailViewModel = hiltViewModel()
             TripDetailScreen(
+                viewModel = tripDetailViewModel,
                 tripId = tripId,
                 onBackClick = { navController.popBackStack() },
                 onNavigateToAttraction = { attractionId ->
@@ -114,7 +146,8 @@ fun BottomNavigationBar(navController: NavHostController) {
         BottomNavItem.Home,
         BottomNavItem.Attractions,
         BottomNavItem.Trip,
-        BottomNavItem.Profile
+        BottomNavItem.Profile,
+        BottomNavItem.Guide
     )
     NavigationBar {
         val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route

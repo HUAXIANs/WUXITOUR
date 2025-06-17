@@ -19,25 +19,14 @@ import com.example.wuxitour.data.model.GuideItem
 import com.example.wuxitour.data.repository.GuideRepository
 import androidx.compose.runtime.remember
 
-class GuideViewModelFactory(private val guideRepository: GuideRepository) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(GuideViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return GuideViewModel(guideRepository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
-
 /**
  * 语音导览页面
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuideScreen(
+    viewModel: GuideViewModel
 ) {
-    val guideRepository = remember { GuideRepository() }
-    val viewModel: GuideViewModel = viewModel(factory = GuideViewModelFactory(guideRepository))
     val uiState by viewModel.uiState.collectAsState()
 
     if (uiState.isLoading) {
@@ -47,10 +36,10 @@ fun GuideScreen(
         return
     }
 
-    uiState.error?.let { error ->
+    uiState.error?.let {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
-                text = error,
+                text = it,
                 color = MaterialTheme.colorScheme.error
             )
         }
@@ -114,58 +103,50 @@ fun GuideScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "${(uiState.progress * guide.duration.toInt()).toInt()}:00 / ${guide.duration}",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        IconButton(
+                            onClick = { /* TODO: 上一个 */ }
+                        ) {
+                            Icon(
+                                Icons.Default.SkipPrevious,
+                                contentDescription = "上一个",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                         
-                        Row {
-                            IconButton(
-                                onClick = { /* TODO: 上一个 */ }
-                            ) {
-                                Icon(
-                                    Icons.Default.SkipPrevious,
-                                    contentDescription = "上一个",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            
-                            IconButton(
-                                onClick = { 
-                                    if (uiState.isPlaying) {
-                                        viewModel.pauseGuide()
-                                    } else {
-                                        viewModel.playGuide(guide)
-                                    }
+                        IconButton(
+                            onClick = { 
+                                if (uiState.isPlaying) {
+                                    viewModel.pauseGuide()
+                                } else {
+                                    viewModel.playGuide(guide)
                                 }
-                            ) {
-                                Icon(
-                                    if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (uiState.isPlaying) "暂停" else "播放",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
                             }
-                            
-                            IconButton(
-                                onClick = { /* TODO: 下一个 */ }
-                            ) {
-                                Icon(
-                                    Icons.Default.SkipNext,
-                                    contentDescription = "下一个",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            
-                            IconButton(
-                                onClick = { viewModel.stopGuide() }
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "关闭",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
+                        ) {
+                            Icon(
+                                if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (uiState.isPlaying) "暂停" else "播放",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        
+                        IconButton(
+                            onClick = { /* TODO: 下一个 */ }
+                        ) {
+                            Icon(
+                                Icons.Default.SkipNext,
+                                contentDescription = "下一个",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        
+                        IconButton(
+                            onClick = { viewModel.stopGuide() }
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "关闭",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         }
                     }
                 }
